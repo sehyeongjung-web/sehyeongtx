@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3000 그림단어책 — 외우지 마세요. 이해하세요.</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #F5F0E8; color: #1B3A2D; }
+a { text-decoration: none; }
+
+/* 네비 */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(245,240,232,0.95); backdrop-filter: blur(12px); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(27,58,45,0.1); }
+.nav-logo { font-size: 16px; font-weight: 700; color: #1B3A2D; }
+.nav-btn { padding: 8px 18px; border-radius: 20px; background: #1B3A2D; color: #fff; font-size: 13px; font-weight: 600; }
+
+/* 히어로 */
+.hero { padding: 120px 24px 64px; text-align: center; max-width: 640px; margin: 0 auto; }
+.hero-tag { font-size: 11px; font-weight: 600; color: #4A7C59; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; }
+.hero h1 { font-size: clamp(36px, 8vw, 64px); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 14px; }
+.hero h1 span { color: #2C5F2D; }
+.hero p { font-size: 16px; color: #4A7C59; line-height: 1.75; margin-bottom: 36px; }
+.hero-cta { display: inline-block; padding: 16px 40px; border-radius: 50px; background: #1B3A2D; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; border: none; transition: opacity 0.2s; }
+.hero-cta:hover { opacity: 0.85; }
+.scroll-hint { margin-top: 56px; font-size: 22px; color: #4A7C59; opacity: 0.4; animation: bounce 2s infinite; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }
+
+/* 섹션 공통 */
+section { padding: 80px 24px; }
+.section-inner { max-width: 860px; margin: 0 auto; }
+.section-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; text-align: center; }
+.section-h2 { font-size: clamp(24px, 4vw, 36px); font-weight: 700; line-height: 1.25; text-align: center; margin-bottom: 36px; }
+
+/* 탭 */
+.tab-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+.tab { padding: 8px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.tab.active { background: #1B3A2D; color: #fff; }
+.tab.inactive { background: rgba(27,58,45,0.1); color: #1B3A2D; }
+
+/* 카드 */
+.root-card { border-radius: 20px; padding: 28px; cursor: pointer; min-height: 260px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s; max-width: 500px; margin: 0 auto; }
+.root-card:hover { transform: scale(1.01); }
+.card-dark { background: #1B3A2D; }
+.card-cream { background: #F5F0E8; border: 0.5px solid rgba(27,58,45,0.15); }
+.card-forest { background: #2C5F2D; }
+.card-emoji { font-size: 32px; margin-bottom: 12px; }
+.card-latin { font-size: 11px; font-weight: 600; color: #C8A84B; letter-spacing: 0.1em; margin-bottom: 6px; }
+.card-root-w { font-size: 42px; font-weight: 700; color: #fff; line-height: 1.1; margin-bottom: 10px; }
+.card-root-d { font-size: 42px; font-weight: 700; color: #1B3A2D; line-height: 1.1; margin-bottom: 10px; }
+.card-scene-w { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.6; }
+.card-scene-d { font-size: 13px; color: rgba(27,58,45,0.6); line-height: 1.6; }
+.card-hint-w { font-size: 12px; color: rgba(255,255,255,0.3); text-align: right; margin-top: 16px; }
+.card-hint-d { font-size: 12px; color: rgba(27,58,45,0.3); text-align: right; margin-top: 16px; }
+.nuance-big { font-size: 52px; font-weight: 700; color: #fff; text-align: center; line-height: 1.1; margin-bottom: 8px; }
+.nuance-big-d { font-size: 52px; font-weight: 700; color: #1B3A2D; text-align: center; line-height: 1.1; margin-bottom: 8px; }
+.gold-line { width: 48px; height: 3px; background: #C8A84B; margin: 12px auto; }
+.nuance-sub-w { font-size: 13px; color: rgba(255,255,255,0.55); text-align: center; }
+.nuance-sub-d { font-size: 13px; color: rgba(27,58,45,0.55); text-align: center; }
+.words-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.word-box { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 12px; }
+.word-box-d { background: rgba(27,58,45,0.07); border-radius: 10px; padding: 10px 12px; }
+.word-name { font-size: 13px; font-weight: 600; color: #fff; }
+.word-name-d { font-size: 13px; font-weight: 600; color: #1B3A2D; }
+.word-reason { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 3px; line-height: 1.4; }
+.word-reason-d { font-size: 11px; color: rgba(27,58,45,0.5); margin-top: 3px; line-height: 1.4; }
+.card-panel { display: none; }
+.card-panel.active { display: block; }
+.card-hint-bottom { font-size: 12px; color: #8A9E8D; text-align: center; margin-top: 14px; }
+
+/* 이론 */
+.theory-bg { background: #1B3A2D; }
+.theory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 36px; }
+.theory-card { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 28px 22px; border-top: 3px solid; }
+.theory-emoji { font-size: 28px; margin-bottom: 12px; }
+.theory-stat { font-size: 42px; font-weight: 700; margin-bottom: 8px; }
+.theory-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 8px; line-height: 1.4; }
+.theory-desc { font-size: 13px; color: #8A9E8D; line-height: 1.65; margin-bottom: 10px; }
+.theory-author { font-size: 11px; color: #4A7C59; font-style: italic; }
+
+/* 소개 */
+.profile-avatar { width: 72px; height: 72px; border-radius: 50%; background: #E8F0E9; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.profile-name { font-size: 26px; font-weight: 700; color: #1B3A2D; margin-bottom: 20px; text-align: center; }
+.career-list { list-style: none; margin-bottom: 24px; }
+.career-list li { font-size: 14px; color: #4A7C59; line-height: 2.0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.career-list li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #C8A84B; flex-shrink: 0; }
+.profile-quote { font-size: 15px; color: #1B3A2D; line-height: 1.8; text-align: center; }
+
+/* 이메일 */
+.email-card { background: #1B3A2D; border-radius: 20px; padding: 40px 28px; text-align: center; max-width: 560px; margin: 0 auto; }
+.email-title { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+.email-sub { font-size: 14px; color: #8A9E8D; margin-bottom: 24px; line-height: 1.6; }
+.email-row { display: flex; gap: 10px; max-width: 420px; margin: 0 auto; }
+.email-input { flex: 1; padding: 13px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff; font-size: 14px; outline: none; }
+.email-input::placeholder { color: rgba(255,255,255,0.3); }
+.email-btn { padding: 13px 20px; border-radius: 12px; background: #C8A84B; color: #1B3A2D; font-weight: 700; font-size: 14px; border: none; cursor: pointer; white-space: nowrap; }
+.email-done { display: none; color: #C8A84B; font-size: 16px; font-weight: 600; margin-top: 16px; }
+
+/* 푸터 */
+footer { background: #1B3A2D; padding: 36px 24px; text-align: center; border-top: 0.5px solid rgba(255,255,255,0.08); }
+.footer-logo { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.footer-insta { font-size: 13px; color: #4A7C59; }
+.footer-copy { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">3000 그림단어책</div>
+  <a class="nav-btn" href="https://www.instagram.com/stayoungjung" target="_blank">인스타그램 →</a>
+</nav>
+
+<!-- 히어로 -->
+<div class="hero">
+  <div class="hero-tag">영어 단어 학습의 새로운 방법</div>
+  <h1>외우지 마세요.<br><span>이해하세요.</span></h1>
+  <p>핵심 뉘앙스 하나를 그림으로 이해하면<br>수십 개의 단어가 저절로 보이기 시작합니다</p>
+  <button class="hero-cta" onclick="document.getElementById('experience').scrollIntoView({behavior:'smooth'})">지금 바로 체험하기 ↓</button>
+  <div class="scroll-hint">↓</div>
+</div>
+
+<!-- 체험 섹션 -->
+<section id="experience">
+  <div class="section-inner">
+    <div class="section-tag" style="color:#C8A84B;">직접 체험해 보세요</div>
+    <h2 class="section-h2">카드를 탭하면<br>단어가 보이기 시작합니다</h2>
+
+    <div class="tab-row">
+      <button class="tab active" onclick="showCard('draw',this)">draw</button>
+      <button class="tab inactive" onclick="showCard('port',this)">port</button>
+      <button class="tab inactive" onclick="showCard('vis',this)">vis</button>
+    </div>
+
+    <!-- draw -->
+    <div id="card-draw">
+      <div class="root-card card-cream" onclick="nextStep('draw')">
+        <div id="draw-0" class="card-panel active">
+          <div class="card-emoji">🏹</div>
+          <div class="card-latin">고대 영어 'dragan'</div>
+          <div class="card-root-d">draw</div>
+          <div class="card-scene-d">활시위를 힘껏 당기는 그 긴장감</div>
+          <div class="card-hint-d">탭해서 핵심 뉘앙스 보기 →</div>
+        </div>
+        <div id="draw-1" class="card-panel">
+          <div class="nuance-big-d">끌어내다</div>
+          <div class="gold-line"></div>
+          <div class="nuance-sub-d">draw의 단 하나의 본질</div>
+          <div class="card-hint-d" style="margin-top:20px;">탭해서 단어들 보기 →</div>
+        </div>
+        <div id="draw-2" class="card-panel">
+          <div style="font-size:12px;font-weight:600;color:#C8A84B;margin-bottom:12px;">'끌어내다'로 모든 뜻이 풀립니다</div>
+          <div class="words-grid">
+            <div class="word-box-d"><div class="word-name-d">그림을 그리다</div><div class="word-reason-d">붓으로 선을 끌어내다</div></div>
+            <div class="word-box-d"><div class="word-name-d">총을 뽑다</div><div class="word-reason-d">홀스터에서 끌어내다</div></div>
+            <div class="word-box-d"><div class="word-name-d">커튼을 치다</div><div class="word-reason-d">옆으로 끌어내다</div></div>
+            <div class="word-box-d"><div class="word-name-d">추첨을 하다</div><div class="word-reason-d">상자에서 끌어내다</div></div>
+            <div class="word-box-d"><div class="word-name-d">활 시위를 당기다</div><div class="word-reason-d">뒤로 끌어내다</div></div>
+            <div class="word-box-d"><div class="word-name-d">주의를 끌다</div><div class="word-reason-d">시선을 끌어내다</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- port -->
+    <div id="card-port" style="display:none;">
+      <div class="root-card card-dark" onclick="nextStep('port')">
+        <div id="port-0" class="card-panel active">
+          <div class="card-emoji">🚢</div>
+          <div class="card-latin">Latin 'portare'</div>
+          <div class="card-root-w">port</div>
+          <div class="card-scene-w">항구에서 컨테이너를 배에서 육지로 나르는 장면</div>
+          <div class="card-hint-w">탭해서 핵심 뉘앙스 보기 →</div>
+        </div>
+        <div id="port-1" class="card-panel">
+          <div class="nuance-big">나르다</div>
+          <div class="gold-line"></div>
+          <div class="nuance-sub-w">port의 단 하나의 본질</div>
+          <div class="card-hint-w" style="margin-top:20px;">탭해서 단어들 보기 →</div>
+        </div>
+        <div id="port-2" class="card-panel">
+          <div style="font-size:12px;font-weight:600;color:#C8A84B;margin-bottom:12px;">'나르다'로 모든 뜻이 풀립니다</div>
+          <div class="words-grid">
+            <div class="word-box"><div class="word-name">import</div><div class="word-reason">im(안으로) → 수입하다</div></div>
+            <div class="word-box"><div class="word-name">export</div><div class="word-reason">ex(밖으로) → 수출하다</div></div>
+            <div class="word-box"><div class="word-name">transport</div><div class="word-reason">trans(건너서) → 운송하다</div></div>
+            <div class="word-box"><div class="word-name">report</div><div class="word-reason">re(다시) → 보고하다</div></div>
+            <div class="word-box"><div class="word-name">support</div><div class="word-reason">sub(아래서) → 지지하다</div></div>
+            <div class="word-box"><div class="word-name">portable</div><div class="word-reason">able → 휴대용의</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- vis -->
+    <div id="card-vis" style="display:none;">
+      <div class="root-card card-forest" onclick="nextStep('vis')">
+        <div id="vis-0" class="card-panel active">
+          <div class="card-emoji">🔭</div>
+          <div class="card-latin">Latin 'videre / visus'</div>
+          <div class="card-root-w">vis / vid</div>
+          <div class="card-scene-w">전망대에서 망원경으로 도시 전체를 바라보는 장면</div>
+          <div class="card-hint-w">탭해서 핵심 뉘앙스 보기 →</div>
+        </div>
+        <div id="vis-1" class="card-panel">
+          <div class="nuance-big">보다</div>
+          <div class="gold-line"></div>
+          <div class="nuance-sub-w">vis의 단 하나의 본질</div>
+          <div class="card-hint-w" style="margin-top:20px;">탭해서 단어들 보기 →</div>
+        </div>
+        <div id="vis-2" class="card-panel">
+          <div style="font-size:12px;font-weight:600;color:#C8A84B;margin-bottom:12px;">'보다'로 모든 뜻이 풀립니다</div>
+          <div class="words-grid">
+            <div class="word-box"><div class="word-name">vision</div><div class="word-reason">보는 능력 → 시각</div></div>
+            <div class="word-box"><div class="word-name">visible</div><div class="word-reason">볼 수 있는</div></div>
+            <div class="word-box"><div class="word-name">visual</div><div class="word-reason">보는 것의 → 시각적인</div></div>
+            <div class="word-box"><div class="word-name">supervise</div><div class="word-reason">위에서 보다</div></div>
+            <div class="word-box"><div class="word-name">provide</div><div class="word-reason">앞을 내다보다</div></div>
+            <div class="word-box"><div class="word-name">television</div><div class="word-reason">멀리 보는 것 → TV</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="card-hint-bottom">카드를 탭할 때마다 뉘앙스 → 단어 순서로 펼쳐집니다</p>
+  </div>
+</section>
+
+<!-- 이론 -->
+<section class="theory-bg">
+  <div class="section-inner">
+    <div class="section-tag" style="color:#C8A84B;">뇌과학이 증명합니다</div>
+    <h2 class="section-h2" style="color:#fff;">왜 그림으로 배워야 하는가</h2>
+    <div class="theory-grid">
+      <div class="theory-card" style="border-top-color:#C0392B;">
+        <div class="theory-emoji">🧠</div>
+        <div class="theory-stat" style="color:#C0392B;">6.5배</div>
+        <div class="theory-title">사진이 텍스트보다 오래 기억된다</div>
+        <div class="theory-desc">3일 후 기억 보존율: 텍스트 10% vs 사진 65%</div>
+        <div class="theory-author">— John Medina, Brain Rules (2008)</div>
+      </div>
+      <div class="theory-card" style="border-top-color:#C8A84B;">
+        <div class="theory-emoji">🔗</div>
+        <div class="theory-stat" style="color:#C8A84B;">2배</div>
+        <div class="theory-title">뇌의 기억 경로가 두 배로 활성화된다</div>
+        <div class="theory-desc">그림과 언어를 함께 학습하면 시각 + 언어 경로가 동시에 저장된다</div>
+        <div class="theory-author">— Allan Paivio, Dual Coding Theory (1971)</div>
+      </div>
+      <div class="theory-card" style="border-top-color:#CE93D8;">
+        <div class="theory-emoji">💡</div>
+        <div class="theory-stat" style="color:#CE93D8;">1개</div>
+        <div class="theory-title">핵심 뉘앙스 하나로 수십 개 뜻이 풀린다</div>
+        <div class="theory-desc">모든 단어의 뜻은 하나의 핵심 이미지에서 파생된다</div>
+        <div class="theory-author">— Eleanor Rosch, Prototype Theory (1970s)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 선생님 소개 -->
+<section>
+  <div class="section-inner" style="max-width:600px; text-align:center;">
+    <div class="profile-avatar">👨‍🏫</div>
+    <div class="section-tag" style="color:#4A7C59;">만든 사람</div>
+    <div class="profile-name">정세형</div>
+    <ul class="career-list">
+      <li>텍사스 주립대학교 대학원 유학</li>
+      <li>파고다어학원 영어강사</li>
+      <li>한국능률협회 부문장</li>
+      <li>현대경제연구원 본부장</li>
+      <li>현직 고등학교 영어교사</li>
+    </ul>
+    <p class="profile-quote">
+      30년간 영어를 가르치면서 깨달은 것은 단 하나입니다.<br>
+      <strong>"단어는 외우는 게 아니라 이해하는 것"</strong>
+    </p>
+  </div>
+</section>
+
+<!-- 이메일 수집 -->
+<section style="padding-top:0;">
+  <div class="email-card">
+    <div class="email-title">새 어근 소식 받기</div>
+    <div class="email-sub">매주 새로운 어근 카드를 먼저 받아보세요</div>
+    <div class="email-row">
+      <input class="email-input" type="email" placeholder="이메일 주소" id="emailInput">
+      <button class="email-btn" onclick="submitEmail()">신청하기</button>
+    </div>
+    <div class="email-done" id="emailDone">🎉 신청 완료! 곧 소식 드릴게요</div>
+  </div>
+</section>
+
+<!-- 푸터 -->
+<footer>
+  <div class="footer-logo">3000 그림단어책</div>
+  <a class="footer-insta" href="https://www.instagram.com/stayoungjung" target="_blank">@stayoungjung</a>
+  <div class="footer-copy">© 2026 정세형. All rights reserved.</div>
+</footer>
+
+<script>
+const state = { draw:0, port:0, vis:0 };
+
+function showCard(id, btn) {
+  ['draw','port','vis'].forEach(c => {
+    document.getElementById('card-'+c).style.display = c===id ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => { t.className='tab inactive'; });
+  btn.className = 'tab active';
+  state[id] = 0;
+  for(let i=0;i<=2;i++){
+    const el = document.getElementById(id+'-'+i);
+    if(el) el.className = i===0 ? 'card-panel active' : 'card-panel';
+  }
+}
+
+function nextStep(id) {
+  const next = state[id] >= 2 ? 0 : state[id]+1;
+  for(let i=0;i<=2;i++){
+    const el = document.getElementById(id+'-'+i);
+    if(el) el.className = i===next ? 'card-panel active' : 'card-panel';
+  }
+  state[id] = next;
+}
+
+function submitEmail() {
+  const v = document.getElementById('emailInput').value;
+  if(v && v.includes('@')) {
+    document.getElementById('emailInput').style.display='none';
+    document.querySelector('.email-btn').style.display='none';
+    document.getElementById('emailDone').style.display='block';
+  }
+}
+</script>
+</body>
+</html>
