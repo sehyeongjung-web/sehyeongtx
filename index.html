@@ -3,331 +3,636 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3000 그림단어책 — 외우지 마세요. 이해하세요.</title>
+<title>3000 그림단어책 — 어근 학습 웹앱</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #F5F0E8; color: #1B3A2D; }
-a { text-decoration: none; }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#F5F0E8;color:#1B3A2D;min-height:100vh;}
+a{text-decoration:none;}
 
 /* 네비 */
-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(245,240,232,0.95); backdrop-filter: blur(12px); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(27,58,45,0.1); }
-.nav-logo { font-size: 16px; font-weight: 700; color: #1B3A2D; }
-.nav-btn { padding: 8px 18px; border-radius: 20px; background: #1B3A2D; color: #fff; font-size: 13px; font-weight: 600; }
+nav{background:rgba(245,240,232,0.96);backdrop-filter:blur(12px);padding:13px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid rgba(27,58,45,0.12);position:sticky;top:0;z-index:100;}
+.nav-logo{font-size:15px;font-weight:700;color:#1B3A2D;}
+.nav-insta{padding:7px 14px;border-radius:20px;background:#1B3A2D;color:#fff;font-size:12px;font-weight:600;}
 
-/* 히어로 */
-.hero { padding: 120px 24px 64px; text-align: center; max-width: 640px; margin: 0 auto; }
-.hero-tag { font-size: 11px; font-weight: 600; color: #4A7C59; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; }
-.hero h1 { font-size: clamp(36px, 8vw, 64px); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 14px; }
-.hero h1 span { color: #2C5F2D; }
-.hero p { font-size: 16px; color: #4A7C59; line-height: 1.75; margin-bottom: 36px; }
-.hero-cta { display: inline-block; padding: 16px 40px; border-radius: 50px; background: #1B3A2D; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; border: none; transition: opacity 0.2s; }
-.hero-cta:hover { opacity: 0.85; }
-.scroll-hint { margin-top: 56px; font-size: 22px; color: #4A7C59; opacity: 0.4; animation: bounce 2s infinite; }
-@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }
+/* 탭 네비 */
+.tab-bar{display:flex;background:#E8F0E9;padding:4px;border-radius:14px;margin:16px 16px 0;}
+.tab-btn{flex:1;padding:9px 0;border:none;background:transparent;border-radius:10px;font-size:13px;font-weight:600;color:#4A7C59;cursor:pointer;transition:all 0.15s;}
+.tab-btn.on{background:#fff;color:#1B3A2D;box-shadow:0 1px 4px rgba(27,58,45,0.12);}
 
-/* 섹션 공통 */
-section { padding: 80px 24px; }
-.section-inner { max-width: 860px; margin: 0 auto; }
-.section-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; text-align: center; }
-.section-h2 { font-size: clamp(24px, 4vw, 36px); font-weight: 700; line-height: 1.25; text-align: center; margin-bottom: 36px; }
+/* 화면 */
+.screen{display:none;padding:16px;}
+.screen.on{display:block;}
 
-/* 탭 */
-.tab-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
-.tab { padding: 8px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
-.tab.active { background: #1B3A2D; color: #fff; }
-.tab.inactive { background: rgba(27,58,45,0.1); color: #1B3A2D; }
+/* 어근 목록 */
+.unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.unit-card{background:#fff;border-radius:14px;border:0.5px solid rgba(27,58,45,0.12);overflow:hidden;cursor:pointer;transition:transform 0.15s;}
+.unit-card:hover{transform:scale(1.02);}
+.unit-thumb{width:100%;height:100px;object-fit:cover;}
+.unit-thumb-placeholder{width:100%;height:100px;background:#E8F0E9;display:flex;align-items:center;justify-content:center;font-size:32px;}
+.unit-info{padding:10px 12px;}
+.unit-num{font-size:10px;color:#8A9E8D;margin-bottom:3px;}
+.unit-root{font-size:18px;font-weight:700;color:#1B3A2D;margin-bottom:2px;}
+.unit-nuance{font-size:12px;color:#4A7C59;}
 
-/* 카드 */
-.root-card { border-radius: 20px; padding: 28px; cursor: pointer; min-height: 260px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s; max-width: 500px; margin: 0 auto; }
-.root-card:hover { transform: scale(1.01); }
-.card-dark { background: #1B3A2D; }
-.card-cream { background: #F5F0E8; border: 0.5px solid rgba(27,58,45,0.15); }
-.card-forest { background: #2C5F2D; }
-.card-emoji { font-size: 32px; margin-bottom: 12px; }
-.card-latin { font-size: 11px; font-weight: 600; color: #C8A84B; letter-spacing: 0.1em; margin-bottom: 6px; }
-.card-root-w { font-size: 42px; font-weight: 700; color: #fff; line-height: 1.1; margin-bottom: 10px; }
-.card-root-d { font-size: 42px; font-weight: 700; color: #1B3A2D; line-height: 1.1; margin-bottom: 10px; }
-.card-scene-w { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.6; }
-.card-scene-d { font-size: 13px; color: rgba(27,58,45,0.6); line-height: 1.6; }
-.card-hint-w { font-size: 12px; color: rgba(255,255,255,0.3); text-align: right; margin-top: 16px; }
-.card-hint-d { font-size: 12px; color: rgba(27,58,45,0.3); text-align: right; margin-top: 16px; }
-.nuance-big { font-size: 52px; font-weight: 700; color: #fff; text-align: center; line-height: 1.1; margin-bottom: 8px; }
-.nuance-big-d { font-size: 52px; font-weight: 700; color: #1B3A2D; text-align: center; line-height: 1.1; margin-bottom: 8px; }
-.gold-line { width: 48px; height: 3px; background: #C8A84B; margin: 12px auto; }
-.nuance-sub-w { font-size: 13px; color: rgba(255,255,255,0.55); text-align: center; }
-.nuance-sub-d { font-size: 13px; color: rgba(27,58,45,0.55); text-align: center; }
-.words-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.word-box { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 12px; }
-.word-box-d { background: rgba(27,58,45,0.07); border-radius: 10px; padding: 10px 12px; }
-.word-name { font-size: 13px; font-weight: 600; color: #fff; }
-.word-name-d { font-size: 13px; font-weight: 600; color: #1B3A2D; }
-.word-reason { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 3px; line-height: 1.4; }
-.word-reason-d { font-size: 11px; color: rgba(27,58,45,0.5); margin-top: 3px; line-height: 1.4; }
-.card-panel { display: none; }
-.card-panel.active { display: block; }
-.card-hint-bottom { font-size: 12px; color: #8A9E8D; text-align: center; margin-top: 14px; }
+/* 카드 학습 */
+.card-wrap{background:#fff;border-radius:16px;border:0.5px solid rgba(27,58,45,0.12);overflow:hidden;margin-bottom:12px;cursor:pointer;}
+.card-photo{width:100%;height:200px;object-fit:cover;}
+.card-body{padding:16px;}
+.card-step{display:none;}
+.card-step.on{display:block;}
+.card-tag{font-size:10px;font-weight:700;color:#8A9E8D;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;}
+.card-root-big{font-size:40px;font-weight:700;color:#1B3A2D;line-height:1.1;margin-bottom:6px;}
+.card-latin{font-size:12px;color:#8A9E8D;margin-bottom:10px;}
+.card-scene{font-size:14px;color:#4A7C59;line-height:1.7;}
+.card-hint{font-size:11px;color:#B0BEB0;text-align:right;margin-top:12px;}
+.nuance-big{font-size:42px;font-weight:700;color:#1B3A2D;text-align:center;margin:8px 0 6px;}
+.gold-bar{width:36px;height:2.5px;background:#C8A84B;margin:0 auto 8px;}
+.nuance-sub{font-size:13px;color:#4A7C59;text-align:center;}
+.words-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+.word-box{background:#F5F0E8;border-radius:10px;padding:10px 11px;}
+.word-en{font-size:13px;font-weight:700;color:#1B3A2D;}
+.word-en span{color:#C8A84B;}
+.word-ko{font-size:11px;color:#4A7C59;margin-top:3px;}
 
-/* 이론 */
-.theory-bg { background: #1B3A2D; }
-.theory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 36px; }
-.theory-card { background: rgba(255,255,255,0.06); border-radius: 16px; padding: 28px 22px; border-top: 3px solid; }
-.theory-emoji { font-size: 28px; margin-bottom: 12px; }
-.theory-stat { font-size: 42px; font-weight: 700; margin-bottom: 8px; }
-.theory-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 8px; line-height: 1.4; }
-.theory-desc { font-size: 13px; color: #8A9E8D; line-height: 1.65; margin-bottom: 10px; }
-.theory-author { font-size: 11px; color: #4A7C59; font-style: italic; }
+/* 스텝 도트 */
+.dots{display:flex;gap:5px;justify-content:center;margin-bottom:10px;}
+.dot{width:6px;height:6px;border-radius:50%;background:#D0D8D0;transition:background 0.2s;}
+.dot.on{background:#1B3A2D;}
 
-/* 소개 */
-.profile-avatar { width: 72px; height: 72px; border-radius: 50%; background: #E8F0E9; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
-.profile-name { font-size: 26px; font-weight: 700; color: #1B3A2D; margin-bottom: 20px; text-align: center; }
-.career-list { list-style: none; margin-bottom: 24px; }
-.career-list li { font-size: 14px; color: #4A7C59; line-height: 2.0; display: flex; align-items: center; justify-content: center; gap: 10px; }
-.career-list li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #C8A84B; flex-shrink: 0; }
-.profile-quote { font-size: 15px; color: #1B3A2D; line-height: 1.8; text-align: center; }
+/* 카드 네비 버튼 */
+.card-nav{display:flex;gap:8px;}
+.cnav{flex:1;padding:10px;border:0.5px solid rgba(27,58,45,0.2);border-radius:10px;background:#fff;font-size:13px;color:#1B3A2D;cursor:pointer;text-align:center;}
+.cnav.primary{background:#1B3A2D;color:#fff;border-color:#1B3A2D;}
 
-/* 이메일 */
-.email-card { background: #1B3A2D; border-radius: 20px; padding: 40px 28px; text-align: center; max-width: 560px; margin: 0 auto; }
-.email-title { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 10px; }
-.email-sub { font-size: 14px; color: #8A9E8D; margin-bottom: 24px; line-height: 1.6; }
-.email-row { display: flex; gap: 10px; max-width: 420px; margin: 0 auto; }
-.email-input { flex: 1; padding: 13px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff; font-size: 14px; outline: none; }
-.email-input::placeholder { color: rgba(255,255,255,0.3); }
-.email-btn { padding: 13px 20px; border-radius: 12px; background: #C8A84B; color: #1B3A2D; font-weight: 700; font-size: 14px; border: none; cursor: pointer; white-space: nowrap; }
-.email-done { display: none; color: #C8A84B; font-size: 16px; font-weight: 600; margin-top: 16px; }
-
-/* 푸터 */
-footer { background: #1B3A2D; padding: 36px 24px; text-align: center; border-top: 0.5px solid rgba(255,255,255,0.08); }
-.footer-logo { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
-.footer-insta { font-size: 13px; color: #4A7C59; }
-.footer-copy { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 16px; }
+/* 퀴즈 */
+.quiz-score{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;border:0.5px solid rgba(27,58,45,0.12);}
+.score-label{font-size:12px;color:#8A9E8D;}
+.score-val{font-size:16px;font-weight:700;color:#1B3A2D;margin-left:auto;}
+.prog-wrap{flex:1;height:4px;background:#E8F0E9;border-radius:99px;overflow:hidden;}
+.prog-fill{height:100%;background:#2C5F2D;border-radius:99px;transition:width 0.3s;}
+.quiz-card{background:#fff;border-radius:16px;border:0.5px solid rgba(27,58,45,0.12);overflow:hidden;margin-bottom:12px;}
+.quiz-photo{width:100%;height:160px;object-fit:cover;}
+.quiz-body{padding:16px;}
+.quiz-q{font-size:13px;color:#8A9E8D;margin-bottom:6px;}
+.quiz-word{font-size:28px;font-weight:700;color:#1B3A2D;margin-bottom:4px;}
+.quiz-word span{color:#C8A84B;}
+.quiz-hint{font-size:12px;color:#8A9E8D;margin-bottom:14px;}
+.quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.opt{padding:12px;border-radius:10px;border:0.5px solid rgba(27,58,45,0.15);background:#F5F0E8;font-size:13px;color:#1B3A2D;cursor:pointer;text-align:center;transition:all 0.15s;}
+.opt:hover{border-color:#4A7C59;}
+.opt.correct{background:#E8F5E9;border-color:#2C5F2D;color:#1B5E20;font-weight:700;}
+.opt.wrong{background:#FFEBEE;border-color:#C62828;color:#B71C1C;}
+.quiz-feedback{font-size:13px;color:#4A7C59;margin-top:10px;line-height:1.6;display:none;}
+.next-btn{width:100%;padding:12px;border-radius:12px;background:#1B3A2D;color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:none;margin-top:4px;}
 </style>
 </head>
 <body>
 
 <nav>
   <div class="nav-logo">3000 그림단어책</div>
-  <a class="nav-btn" href="https://www.instagram.com/stayoungjung" target="_blank">인스타그램 →</a>
+  <a class="nav-insta" href="https://www.instagram.com/stayoungjung" target="_blank">인스타그램 →</a>
 </nav>
 
-<!-- 히어로 -->
-<div class="hero">
-  <div class="hero-tag">영어 단어 학습의 새로운 방법</div>
-  <h1>외우지 마세요.<br><span>이해하세요.</span></h1>
-  <p>핵심 뉘앙스 하나를 그림으로 이해하면<br>수십 개의 단어가 저절로 보이기 시작합니다</p>
-  <button class="hero-cta" onclick="document.getElementById('experience').scrollIntoView({behavior:'smooth'})">지금 바로 체험하기 ↓</button>
-  <div class="scroll-hint">↓</div>
+<div class="tab-bar">
+  <button class="tab-btn on" onclick="switchTab('list',this)">어근 목록</button>
+  <button class="tab-btn" onclick="switchTab('card',this)">카드 학습</button>
+  <button class="tab-btn" onclick="switchTab('quiz',this)">퀴즈</button>
 </div>
 
-<!-- 체험 섹션 -->
-<section id="experience">
-  <div class="section-inner">
-    <div class="section-tag" style="color:#C8A84B;">직접 체험해 보세요</div>
-    <h2 class="section-h2">카드를 탭하면<br>단어가 보이기 시작합니다</h2>
+<!-- 어근 목록 -->
+<div id="screen-list" class="screen on">
+  <div class="unit-grid" id="unitGrid"></div>
+</div>
 
-    <div class="tab-row">
-      <button class="tab active" onclick="showCard('draw',this)">draw</button>
-      <button class="tab inactive" onclick="showCard('port',this)">port</button>
-      <button class="tab inactive" onclick="showCard('vis',this)">vis</button>
-    </div>
-
-    <!-- draw -->
-    <div id="card-draw">
-      <div class="root-card card-cream" onclick="nextStep('draw')">
-        <div id="draw-0" class="card-panel active">
-          <div class="card-emoji">🏹</div>
-          <div class="card-latin">고대 영어 'dragan'</div>
-          <div class="card-root-d">draw</div>
-          <div class="card-scene-d">활시위를 힘껏 당기는 그 긴장감</div>
-          <div class="card-hint-d">탭해서 핵심 뉘앙스 보기 →</div>
-        </div>
-        <div id="draw-1" class="card-panel">
-          <div class="nuance-big-d">끌어내다</div>
-          <div class="gold-line"></div>
-          <div class="nuance-sub-d">draw의 단 하나의 본질</div>
-          <div class="card-hint-d" style="margin-top:20px;">탭해서 단어들 보기 →</div>
-        </div>
-        <div id="draw-2" class="card-panel">
-          <div style="font-size:12px;font-weight:600;color:#C8A84B;margin-bottom:12px;">'끌어내다'로 모든 뜻이 풀립니다</div>
-          <div class="words-grid">
-            <div class="word-box-d"><div class="word-name-d">그림을 그리다</div><div class="word-reason-d">붓으로 선을 끌어내다</div></div>
-            <div class="word-box-d"><div class="word-name-d">총을 뽑다</div><div class="word-reason-d">홀스터에서 끌어내다</div></div>
-            <div class="word-box-d"><div class="word-name-d">커튼을 치다</div><div class="word-reason-d">옆으로 끌어내다</div></div>
-            <div class="word-box-d"><div class="word-name-d">추첨을 하다</div><div class="word-reason-d">상자에서 끌어내다</div></div>
-            <div class="word-box-d"><div class="word-name-d">활 시위를 당기다</div><div class="word-reason-d">뒤로 끌어내다</div></div>
-            <div class="word-box-d"><div class="word-name-d">주의를 끌다</div><div class="word-reason-d">시선을 끌어내다</div></div>
-          </div>
-        </div>
+<!-- 카드 학습 -->
+<div id="screen-card" class="screen">
+  <div class="dots" id="dots"></div>
+  <div class="card-wrap" onclick="nextStep()">
+    <img id="cardPhoto" class="card-photo" src="" alt="어근 이미지">
+    <div class="card-body">
+      <!-- step 0: 어근 소개 -->
+      <div class="card-step on" id="step0">
+        <div class="card-tag" id="s0tag"></div>
+        <div class="card-root-big" id="s0root"></div>
+        <div class="card-latin" id="s0latin"></div>
+        <div class="card-scene" id="s0scene"></div>
+        <div class="card-hint">탭해서 핵심 뉘앙스 보기 →</div>
       </div>
-    </div>
-
-    <!-- port -->
-    <div id="card-port" style="display:none;">
-      <div class="root-card card-dark" onclick="nextStep('port')">
-        <div id="port-0" class="card-panel active">
-          <div class="card-emoji">🚢</div>
-          <div class="card-latin">Latin 'portare'</div>
-          <div class="card-root-w">port</div>
-          <div class="card-scene-w">항구에서 컨테이너를 배에서 육지로 나르는 장면</div>
-          <div class="card-hint-w">탭해서 핵심 뉘앙스 보기 →</div>
-        </div>
-        <div id="port-1" class="card-panel">
-          <div class="nuance-big">나르다</div>
-          <div class="gold-line"></div>
-          <div class="nuance-sub-w">port의 단 하나의 본질</div>
-          <div class="card-hint-w" style="margin-top:20px;">탭해서 단어들 보기 →</div>
-        </div>
-        <div id="port-2" class="card-panel">
-          <div style="font-size:12px;font-weight:600;color:#C8A84B;margin-bottom:12px;">'나르다'로 모든 뜻이 풀립니다</div>
-          <div class="words-grid">
-            <div class="word-box"><div class="word-name">import</div><div class="word-reason">im(안으로) → 수입하다</div></div>
-            <div class="word-box"><div class="word-name">export</div><div class="word-reason">ex(밖으로) → 수출하다</div></div>
-            <div class="word-box"><div class="word-name">transport</div><div class="word-reason">trans(건너서) → 운송하다</div></div>
-            <div class="word-box"><div class="word-name">report</div><div class="word-reason">re(다시) → 보고하다</div></div>
-            <div class="word-box"><div class="word-name">support</div><div class="word-reason">sub(아래서) → 지지하다</div></div>
-            <div class="word-box"><div class="word-name">portable</div><div class="word-reason">able → 휴대용의</div></div>
-          </div>
-        </div>
+      <!-- step 1: 뉘앙스 -->
+      <div class="card-step" id="step1">
+        <div class="card-tag">핵심 뉘앙스</div>
+        <div class="nuance-big" id="s1nuance"></div>
+        <div class="gold-bar"></div>
+        <div class="nuance-sub" id="s1sub"></div>
+        <div class="card-hint" style="margin-top:16px;">탭해서 단어들 보기 →</div>
       </div>
-    </div>
-
-    <!-- vis -->
-    <div id="card-vis" style="display:none;">
-      <div class="root-card card-forest" onclick="nextStep('vis')">
-        <div id="vis-0" class="card-panel active">
-          <div class="card-emoji">🔭</div>
-          <div class="card-latin">Latin 'videre / visus'</div>
-          <div class="card-root-w">vis / vid</div>
-          <div class="card-scene-w">전망대에서 망원경으로 도시 전체를 바라보는 장면</div>
-          <div class="card-hint-w">탭해서 핵심 뉘앙스 보기 →</div>
-        </div>
-        <div id="vis-1" class="card-panel">
-          <div class="nuance-big">보다</div>
-          <div class="gold-line"></div>
-          <div class="nuance-sub-w">vis의 단 하나의 본질</div>
-          <div class="card-hint-w" style="margin-top:20px;">탭해서 단어들 보기 →</div>
-        </div>
-        <div id="vis-2" class="card-panel">
-          <div style="font-size:12px;font-weight:600;color:#C8A84B;margin-bottom:12px;">'보다'로 모든 뜻이 풀립니다</div>
-          <div class="words-grid">
-            <div class="word-box"><div class="word-name">vision</div><div class="word-reason">보는 능력 → 시각</div></div>
-            <div class="word-box"><div class="word-name">visible</div><div class="word-reason">볼 수 있는</div></div>
-            <div class="word-box"><div class="word-name">visual</div><div class="word-reason">보는 것의 → 시각적인</div></div>
-            <div class="word-box"><div class="word-name">supervise</div><div class="word-reason">위에서 보다</div></div>
-            <div class="word-box"><div class="word-name">provide</div><div class="word-reason">앞을 내다보다</div></div>
-            <div class="word-box"><div class="word-name">television</div><div class="word-reason">멀리 보는 것 → TV</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <p class="card-hint-bottom">카드를 탭할 때마다 뉘앙스 → 단어 순서로 펼쳐집니다</p>
-  </div>
-</section>
-
-<!-- 이론 -->
-<section class="theory-bg">
-  <div class="section-inner">
-    <div class="section-tag" style="color:#C8A84B;">뇌과학이 증명합니다</div>
-    <h2 class="section-h2" style="color:#fff;">왜 그림으로 배워야 하는가</h2>
-    <div class="theory-grid">
-      <div class="theory-card" style="border-top-color:#C0392B;">
-        <div class="theory-emoji">🧠</div>
-        <div class="theory-stat" style="color:#C0392B;">6.5배</div>
-        <div class="theory-title">사진이 텍스트보다 오래 기억된다</div>
-        <div class="theory-desc">3일 후 기억 보존율: 텍스트 10% vs 사진 65%</div>
-        <div class="theory-author">— John Medina, Brain Rules (2008)</div>
-      </div>
-      <div class="theory-card" style="border-top-color:#C8A84B;">
-        <div class="theory-emoji">🔗</div>
-        <div class="theory-stat" style="color:#C8A84B;">2배</div>
-        <div class="theory-title">뇌의 기억 경로가 두 배로 활성화된다</div>
-        <div class="theory-desc">그림과 언어를 함께 학습하면 시각 + 언어 경로가 동시에 저장된다</div>
-        <div class="theory-author">— Allan Paivio, Dual Coding Theory (1971)</div>
-      </div>
-      <div class="theory-card" style="border-top-color:#CE93D8;">
-        <div class="theory-emoji">💡</div>
-        <div class="theory-stat" style="color:#CE93D8;">1개</div>
-        <div class="theory-title">핵심 뉘앙스 하나로 수십 개 뜻이 풀린다</div>
-        <div class="theory-desc">모든 단어의 뜻은 하나의 핵심 이미지에서 파생된다</div>
-        <div class="theory-author">— Eleanor Rosch, Prototype Theory (1970s)</div>
+      <!-- step 2: 단어들 -->
+      <div class="card-step" id="step2">
+        <div class="card-tag" id="s2tag"></div>
+        <div class="words-grid" id="wordsGrid"></div>
       </div>
     </div>
   </div>
-</section>
-
-<!-- 선생님 소개 -->
-<section>
-  <div class="section-inner" style="max-width:600px; text-align:center;">
-    <div class="profile-avatar">👨‍🏫</div>
-    <div class="section-tag" style="color:#4A7C59;">만든 사람</div>
-    <div class="profile-name">정세형</div>
-    <ul class="career-list">
-      <li>텍사스 주립대학교 대학원 유학</li>
-      <li>파고다어학원 영어강사</li>
-      <li>한국능률협회 부문장</li>
-      <li>현대경제연구원 본부장</li>
-      <li>현직 고등학교 영어교사</li>
-    </ul>
-    <p class="profile-quote">
-      30년간 영어를 가르치면서 깨달은 것은 단 하나입니다.<br>
-      <strong>"단어는 외우는 게 아니라 이해하는 것"</strong>
-    </p>
+  <div class="card-nav">
+    <button class="cnav" onclick="prevUnit()">← 이전</button>
+    <button class="cnav primary" onclick="nextStep()">다음 단계</button>
+    <button class="cnav" onclick="nextUnit()">다음 →</button>
   </div>
-</section>
+</div>
 
-<!-- 이메일 수집 -->
-<section style="padding-top:0;">
-  <div class="email-card">
-    <div class="email-title">새 어근 소식 받기</div>
-    <div class="email-sub">매주 새로운 어근 카드를 먼저 받아보세요</div>
-    <div class="email-row">
-      <input class="email-input" type="email" placeholder="이메일 주소" id="emailInput">
-      <button class="email-btn" onclick="submitEmail()">신청하기</button>
+<!-- 퀴즈 -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-score">
+    <div class="score-label">정답률</div>
+    <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    <div class="score-val" id="scoreVal">0 / 0</div>
+  </div>
+  <div class="quiz-card">
+    <img id="quizPhoto" class="quiz-photo" src="" alt="어근 힌트 사진">
+    <div class="quiz-body">
+      <div class="quiz-q">이 사진의 어근 뜻은 무엇일까요?</div>
+      <div class="quiz-word" id="quizWord"></div>
+      <div class="quiz-hint" id="quizHint"></div>
+      <div class="quiz-opts" id="quizOpts"></div>
+      <div class="quiz-feedback" id="quizFeedback"></div>
     </div>
-    <div class="email-done" id="emailDone">🎉 신청 완료! 곧 소식 드릴게요</div>
   </div>
-</section>
-
-<!-- 푸터 -->
-<footer>
-  <div class="footer-logo">3000 그림단어책</div>
-  <a class="footer-insta" href="https://www.instagram.com/stayoungjung" target="_blank">@stayoungjung</a>
-  <div class="footer-copy">© 2026 정세형. All rights reserved.</div>
-</footer>
+  <button class="next-btn" id="nextBtn" onclick="nextQuiz()">다음 문제 →</button>
+</div>
 
 <script>
-const state = { draw:0, port:0, vis:0 };
+const CARDS = [
+  {
+    "unit": "특별편",
+    "root": "draw",
+    "latin": "고대 영어 'dragan'",
+    "meaning": "끌어내다",
+    "nuance": "안에서 밖으로 끌어당기는 힘",
+    "scene": "활시위를 힘껏 당기는 그 긴장감이 draw의 전부입니다",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/draw.jpg",
+    "words": [
+      {
+        "en": "그림을 그리다",
+        "ko": "붓으로 선을 끌어내다",
+        "root_part": "draw"
+      },
+      {
+        "en": "총을 뽑다",
+        "ko": "홀스터에서 끌어내다",
+        "root_part": "draw"
+      },
+      {
+        "en": "커튼을 치다",
+        "ko": "옆으로 끌어내다",
+        "root_part": "draw"
+      },
+      {
+        "en": "추첨을 하다",
+        "ko": "상자에서 끌어내다",
+        "root_part": "draw"
+      },
+      {
+        "en": "활 시위를 당기다",
+        "ko": "뒤로 끌어내다",
+        "root_part": "draw"
+      },
+      {
+        "en": "주의를 끌다",
+        "ko": "시선을 끌어내다",
+        "root_part": "draw"
+      }
+    ]
+  },
+  {
+    "unit": "UNIT 012",
+    "root": "port",
+    "latin": "Latin 'portare' = carry",
+    "meaning": "나르다, 운반하다",
+    "nuance": "한 곳에서 다른 곳으로 옮겨 나른다",
+    "scene": "항구에서 컨테이너를 배에서 육지로 옮기는 장면을 떠올리세요",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/port.jpg",
+    "words": [
+      {
+        "en": "import",
+        "ko": "수입하다",
+        "root_part": "port"
+      },
+      {
+        "en": "export",
+        "ko": "수출하다",
+        "root_part": "port"
+      },
+      {
+        "en": "transport",
+        "ko": "운송하다",
+        "root_part": "port"
+      },
+      {
+        "en": "report",
+        "ko": "보고하다",
+        "root_part": "port"
+      },
+      {
+        "en": "support",
+        "ko": "지지하다",
+        "root_part": "port"
+      },
+      {
+        "en": "portable",
+        "ko": "휴대용의",
+        "root_part": "port"
+      }
+    ]
+  },
+  {
+    "unit": "UNIT 005",
+    "root": "vis/vid",
+    "latin": "Latin 'videre/visus' = see",
+    "meaning": "보다",
+    "nuance": "눈으로 보고 확인하며 머릿속에 장면을 떠올림",
+    "scene": "전망대에서 망원경으로 도시 전체를 눈으로 확인하며 바라보는 장면",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/vis.jpg",
+    "words": [
+      {
+        "en": "vision",
+        "ko": "시각, 비전",
+        "root_part": "vis"
+      },
+      {
+        "en": "visible",
+        "ko": "눈에 보이는",
+        "root_part": "vis"
+      },
+      {
+        "en": "visual",
+        "ko": "시각적인",
+        "root_part": "vis"
+      },
+      {
+        "en": "supervise",
+        "ko": "감독하다",
+        "root_part": "vis"
+      },
+      {
+        "en": "provide",
+        "ko": "제공하다",
+        "root_part": "vid"
+      },
+      {
+        "en": "television",
+        "ko": "TV",
+        "root_part": "vis"
+      }
+    ]
+  },
+  {
+    "unit": "UNIT 009",
+    "root": "dict",
+    "latin": "Latin 'dicere/dictum' = say",
+    "meaning": "말하다, 선언하다",
+    "nuance": "생각이나 판단을 말로 분명하고 힘 있게 전달하는 느낌",
+    "scene": "뉴스 앵커가 마이크 앞에서 공식 발표를 선언하듯 전달하는 장면",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/dict.jpg",
+    "words": [
+      {
+        "en": "predict",
+        "ko": "예측하다",
+        "root_part": "dict"
+      },
+      {
+        "en": "dictate",
+        "ko": "지시하다",
+        "root_part": "dict"
+      },
+      {
+        "en": "contradict",
+        "ko": "반박하다",
+        "root_part": "dict"
+      },
+      {
+        "en": "verdict",
+        "ko": "판결, 평결",
+        "root_part": "dict"
+      },
+      {
+        "en": "dictator",
+        "ko": "독재자",
+        "root_part": "dict"
+      },
+      {
+        "en": "indicate",
+        "ko": "나타내다",
+        "root_part": "dic"
+      }
+    ]
+  },
+  {
+    "unit": "UNIT 003",
+    "root": "press",
+    "latin": "Latin 'premere' = press",
+    "meaning": "누르다, 압박하다",
+    "nuance": "힘을 가해 누르고 그 결과로 흔적이나 압박을 남김",
+    "scene": "인쇄소의 프레스 기계가 종이를 강하게 눌러 선명한 자국을 남기는 장면",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/press.jpg",
+    "words": [
+      {
+        "en": "impress",
+        "ko": "감동시키다",
+        "root_part": "press"
+      },
+      {
+        "en": "express",
+        "ko": "표현하다",
+        "root_part": "press"
+      },
+      {
+        "en": "suppress",
+        "ko": "억누르다",
+        "root_part": "press"
+      },
+      {
+        "en": "depress",
+        "ko": "우울하게 하다",
+        "root_part": "press"
+      },
+      {
+        "en": "compress",
+        "ko": "압축하다",
+        "root_part": "press"
+      },
+      {
+        "en": "espresso",
+        "ko": "에스프레소",
+        "root_part": "press"
+      }
+    ]
+  },
+  {
+    "unit": "UNIT 029",
+    "root": "ject",
+    "latin": "Latin 'jacere/jectus' = throw",
+    "meaning": "던지다",
+    "nuance": "어떤 대상을 한 방향으로 던져 내보냄",
+    "scene": "투수가 공을 포수 쪽으로 힘껏 던지는 장면을 떠올리세요",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/ject.jpg",
+    "words": [
+      {
+        "en": "inject",
+        "ko": "주입하다",
+        "root_part": "ject"
+      },
+      {
+        "en": "reject",
+        "ko": "거부하다",
+        "root_part": "ject"
+      },
+      {
+        "en": "project",
+        "ko": "투영하다",
+        "root_part": "ject"
+      },
+      {
+        "en": "eject",
+        "ko": "방출하다",
+        "root_part": "ject"
+      },
+      {
+        "en": "subject",
+        "ko": "주제, 과목",
+        "root_part": "ject"
+      },
+      {
+        "en": "object",
+        "ko": "반대하다",
+        "root_part": "ject"
+      }
+    ]
+  },
+  {
+    "unit": "UNIT 017",
+    "root": "vert/vers",
+    "latin": "Latin 'vertere' = turn",
+    "meaning": "돌리다, 방향을 바꾸다",
+    "nuance": "방향이나 상태를 다른 쪽으로 돌린다",
+    "scene": "기차가 선로 분기점에서 다른 방향으로 바뀌는 장면을 떠올리세요",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/vert.jpg",
+    "words": [
+      {
+        "en": "convert",
+        "ko": "변환하다",
+        "root_part": "vert"
+      },
+      {
+        "en": "revert",
+        "ko": "되돌아가다",
+        "root_part": "vert"
+      },
+      {
+        "en": "divert",
+        "ko": "우회시키다",
+        "root_part": "vert"
+      },
+      {
+        "en": "introvert",
+        "ko": "내향적인 사람",
+        "root_part": "vert"
+      },
+      {
+        "en": "extrovert",
+        "ko": "외향적인 사람",
+        "root_part": "vert"
+      },
+      {
+        "en": "universe",
+        "ko": "우주",
+        "root_part": "vers"
+      }
+    ]
+  },
+  {
+    "unit": "UNIT 001",
+    "root": "struct",
+    "latin": "Latin 'struere' = build",
+    "meaning": "쌓다, 세우다",
+    "nuance": "흩어진 재료를 질서 있게 쌓아 하나의 구조를 만드는 힘",
+    "scene": "건설 현장에서 작업자가 철골 기둥을 하나씩 세워 건물의 뼈대를 만드는 장면",
+    "photo": "https://sehyeongjung-web.github.io/sehyeongtx/struct.jpg",
+    "words": [
+      {
+        "en": "structure",
+        "ko": "구조, 건축물",
+        "root_part": "struct"
+      },
+      {
+        "en": "construct",
+        "ko": "건설하다",
+        "root_part": "struct"
+      },
+      {
+        "en": "instruct",
+        "ko": "가르치다",
+        "root_part": "struct"
+      },
+      {
+        "en": "destroy",
+        "ko": "파괴하다",
+        "root_part": "struct"
+      },
+      {
+        "en": "reconstruct",
+        "ko": "재건하다",
+        "root_part": "struct"
+      },
+      {
+        "en": "obstruct",
+        "ko": "방해하다",
+        "root_part": "struct"
+      }
+    ]
+  }
+];
 
-function showCard(id, btn) {
-  ['draw','port','vis'].forEach(c => {
-    document.getElementById('card-'+c).style.display = c===id ? 'block' : 'none';
+let curUnit = 0, curStep = 0;
+let quizList = [], quizIdx = 0, score = 0, answered = false;
+
+function highlightRoot(word, rootPart) {
+  if(!rootPart) return word;
+  const re = new RegExp('(' + rootPart + ')', 'i');
+  return word.replace(re, '<span>$1</span>');
+}
+
+function renderList() {
+  const g = document.getElementById('unitGrid');
+  g.innerHTML = CARDS.map((c,i) => `
+    <div class="unit-card" onclick="goCard(${i})">
+      ${c.photo
+        ? `<img class="unit-thumb" src="${c.photo}" alt="${c.root}" onerror="this.style.display='none'">`
+        : `<div class="unit-thumb-placeholder">🌱</div>`}
+      <div class="unit-info">
+        <div class="unit-num">${c.unit}</div>
+        <div class="unit-root">${c.root}</div>
+        <div class="unit-nuance">${c.meaning}</div>
+      </div>
+    </div>`).join('');
+}
+
+function goCard(i) {
+  curUnit = i; curStep = 0;
+  switchTab('card', document.querySelectorAll('.tab-btn')[1]);
+  renderCard();
+}
+
+function renderCard() {
+  const c = CARDS[curUnit];
+  // 사진
+  const ph = document.getElementById('cardPhoto');
+  if(c.photo){ ph.src = c.photo; ph.style.display='block'; }
+  else { ph.style.display='none'; }
+  // 도트
+  document.getElementById('dots').innerHTML = [0,1,2].map(i=>
+    `<div class="dot ${i===curStep?'on':''}"></div>`).join('');
+  // 스텝들 숨기기
+  ['step0','step1','step2'].forEach((id,i)=>{
+    document.getElementById(id).className = 'card-step' + (i===curStep?' on':'');
   });
-  document.querySelectorAll('.tab').forEach(t => { t.className='tab inactive'; });
-  btn.className = 'tab active';
-  state[id] = 0;
-  for(let i=0;i<=2;i++){
-    const el = document.getElementById(id+'-'+i);
-    if(el) el.className = i===0 ? 'card-panel active' : 'card-panel';
-  }
+  // 내용 채우기
+  document.getElementById('s0tag').textContent = c.unit + ' · 어근';
+  document.getElementById('s0root').textContent = c.root;
+  document.getElementById('s0latin').textContent = c.latin;
+  document.getElementById('s0scene').textContent = c.scene;
+  document.getElementById('s1nuance').textContent = c.meaning;
+  document.getElementById('s1sub').textContent = `'${c.root}'의 단 하나의 본질`;
+  document.getElementById('s2tag').textContent = `'${c.meaning}'로 모든 뜻이 풀립니다`;
+  document.getElementById('wordsGrid').innerHTML = c.words.map(w=>`
+    <div class="word-box">
+      <div class="word-en">${highlightRoot(w.en, w.root_part)}</div>
+      <div class="word-ko">${w.ko}</div>
+    </div>`).join('');
 }
 
-function nextStep(id) {
-  const next = state[id] >= 2 ? 0 : state[id]+1;
-  for(let i=0;i<=2;i++){
-    const el = document.getElementById(id+'-'+i);
-    if(el) el.className = i===next ? 'card-panel active' : 'card-panel';
-  }
-  state[id] = next;
+function nextStep() {
+  curStep = curStep >= 2 ? 0 : curStep + 1;
+  renderCard();
+}
+function prevUnit() { curUnit = curUnit<=0 ? CARDS.length-1 : curUnit-1; curStep=0; renderCard(); }
+function nextUnit() { curUnit = curUnit>=CARDS.length-1 ? 0 : curUnit+1; curStep=0; renderCard(); }
+
+function buildQuiz() {
+  quizList = [];
+  CARDS.forEach(c => {
+    c.words.forEach(w => {
+      const wrongs = CARDS.filter(x=>x.root!==c.root)
+        .sort(()=>Math.random()-0.5).slice(0,3).map(x=>x.meaning);
+      const opts = [...wrongs, c.meaning].sort(()=>Math.random()-0.5);
+      quizList.push({ word: w.en, root_part: w.root_part, answer: c.meaning, root: c.root, photo: c.photo, unit: c.unit, opts });
+    });
+  });
+  quizList.sort(()=>Math.random()-0.5);
 }
 
-function submitEmail() {
-  const v = document.getElementById('emailInput').value;
-  if(v && v.includes('@')) {
-    document.getElementById('emailInput').style.display='none';
-    document.querySelector('.email-btn').style.display='none';
-    document.getElementById('emailDone').style.display='block';
+function renderQuiz() {
+  if(quizIdx >= quizList.length) {
+    document.querySelector('.quiz-card').innerHTML = `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:40px;margin-bottom:12px;">🎉</div>
+        <div style="font-size:20px;font-weight:700;color:#1B3A2D;margin-bottom:8px;">퀴즈 완료!</div>
+        <div style="font-size:15px;color:#4A7C59;">최종 정답률: ${Math.round(score/quizList.length*100)}%</div>
+      </div>`;
+    document.getElementById('nextBtn').style.display='none';
+    return;
   }
+  const q = quizList[quizIdx];
+  answered = false;
+  document.getElementById('nextBtn').style.display='none';
+  // 사진
+  const qp = document.getElementById('quizPhoto');
+  if(q.photo){ qp.src=q.photo; qp.style.display='block'; }
+  else { qp.style.display='none'; }
+  // 단어 (어근 골드 강조)
+  document.getElementById('quizWord').innerHTML = highlightRoot(q.word, q.root_part);
+  document.getElementById('quizHint').textContent = q.unit + ' · 어근: ' + q.root;
+  document.getElementById('quizFeedback').style.display='none';
+  document.getElementById('quizOpts').innerHTML = q.opts.map(o=>`
+    <button class="opt" onclick="answerQuiz('${o}','${q.answer}','${q.root}',this)">${o}</button>`).join('');
+  // 점수
+  const total = quizIdx;
+  document.getElementById('scoreVal').textContent = `${score} / ${total}`;
+  document.getElementById('progFill').style.width = total>0 ? `${Math.round(score/total*100)}%` : '0%';
 }
+
+function answerQuiz(chosen, answer, root, btn) {
+  if(answered) return;
+  answered = true;
+  document.querySelectorAll('.opt').forEach(o=>{
+    if(o.textContent===answer) o.classList.add('correct');
+    else if(o===btn && chosen!==answer) o.classList.add('wrong');
+    o.onclick=null;
+  });
+  if(chosen===answer) score++;
+  const fb = document.getElementById('quizFeedback');
+  fb.style.display='block';
+  fb.style.color = chosen===answer ? '#2C5F2D' : '#C62828';
+  fb.textContent = chosen===answer
+    ? `✓ 정답! '${root}'의 핵심 뉘앙스는 '${answer}'입니다.`
+    : `✗ '${root}'의 핵심 뉘앙스는 '${answer}'입니다.`;
+  document.getElementById('nextBtn').style.display='block';
+  const total = quizIdx+1;
+  document.getElementById('scoreVal').textContent = `${score} / ${total}`;
+  document.getElementById('progFill').style.width = `${Math.round(score/total*100)}%`;
+}
+
+function nextQuiz() { quizIdx++; renderQuiz(); }
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('screen-'+id).classList.add('on');
+  btn.classList.add('on');
+  if(id==='card') renderCard();
+  if(id==='quiz'){ buildQuiz(); quizIdx=0; score=0; renderQuiz(); }
+}
+
+renderList();
 </script>
 </body>
 </html>
