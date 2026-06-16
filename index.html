@@ -17,10 +17,10 @@ nav{background:rgba(27,58,45,0.95);backdrop-filter:blur(12px);padding:14px 20px;
 .screen.on{display:block;}
 
 /* ── 어근 목록 ── */
-.list-grid{display:grid;grid-template-columns:1fr;gap:12px;}
+.list-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .list-card{border-radius:16px;overflow:hidden;cursor:pointer;position:relative;background:#000;transition:transform 0.15s;}
 .list-card:hover{transform:scale(1.02);}
-.list-photo{width:100%;height:auto;object-fit:contain;display:block;opacity:0.85;background:#111;}
+.list-photo{width:100%;height:150px;object-fit:cover;display:block;opacity:0.82;}
 .list-card:hover .list-photo{opacity:0.88;}
 .list-overlay{position:absolute;bottom:0;left:0;right:0;padding:12px;background:linear-gradient(transparent,rgba(0,0,0,0.82));}
 .list-unit{font-size:10px;color:rgba(255,255,255,0.55);margin-bottom:3px;}
@@ -32,7 +32,7 @@ nav{background:rgba(27,58,45,0.95);backdrop-filter:blur(12px);padding:14px 20px;
 
 /* ── 카드 학습 ── */
 .card-photo-wrap{position:relative;border-radius:16px;overflow:hidden;margin-bottom:12px;cursor:pointer;}
-.card-photo-full{width:100%;height:280px;object-fit:cover;display:block;}
+.card-photo-full{width:100%;height:auto;object-fit:contain;display:block;background:#111;max-height:320px;}
 .card-overlay{position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(transparent,rgba(0,0,0,0.85));}
 .step-q{text-align:center;}
 .step-q-mark{font-size:40px;font-weight:700;color:#C8A84B;margin-bottom:6px;}
@@ -75,7 +75,7 @@ nav{background:rgba(27,58,45,0.95);backdrop-filter:blur(12px);padding:14px 20px;
 
 /* 퀴즈 1단계: 사진+어근선택 */
 .quiz-photo-wrap{border-radius:16px;overflow:hidden;margin-bottom:12px;}
-.quiz-photo-full{width:100%;height:220px;object-fit:cover;display:block;}
+.quiz-photo-full{width:100%;height:auto;object-fit:contain;display:block;background:#111;max-height:280px;}
 .quiz-q-label{font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:10px;}
 .quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
 .opt{padding:14px 10px;border-radius:12px;border:0.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);cursor:pointer;text-align:center;transition:all 0.15s;}
