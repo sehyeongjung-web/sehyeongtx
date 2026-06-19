@@ -228,6 +228,7 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
       <div class="badge-score" id="bScore"></div>
     </div>
     <button class="next-root-btn" id="nextRootBtn" onclick="goNextRoot()"></button>
+    <button class="flow-btn-secondary" id="retryBtn" onclick="retryQuiz()" style="display:none;">이 어근 다시 풀기 ↻</button>
     <button class="all-done-btn" onclick="switchTab('list',document.querySelectorAll('.tab-btn')[0])">전체 목록으로 →</button>
   </div>
 </div>
@@ -843,6 +844,35 @@ function showBadge(){
     btn.textContent = '모든 어근 완료! 처음으로 →';
     btn.style.display='block';
   }
+
+  // 정답률이 낮으면 다시 풀기 버튼 강조 표시
+  const retryBtn = document.getElementById('retryBtn');
+  if(pct < 70){
+    retryBtn.style.display='block';
+    btn.style.background = 'rgba(255,255,255,0.08)';
+    btn.style.color = 'rgba(255,255,255,0.7)';
+    btn.style.border = '0.5px solid rgba(255,255,255,0.15)';
+    retryBtn.style.background = '#C8A84B';
+    retryBtn.style.color = '#1B3A2D';
+    retryBtn.style.fontWeight = '700';
+    retryBtn.style.fontSize = '15px';
+    retryBtn.style.padding = '14px';
+  } else {
+    retryBtn.style.display='block';
+    btn.style.background = '#C8A84B';
+    btn.style.color = '#1B3A2D';
+    btn.style.border = 'none';
+    retryBtn.style.background = 'rgba(255,255,255,0.08)';
+    retryBtn.style.color = 'rgba(255,255,255,0.7)';
+    retryBtn.style.fontWeight = '600';
+    retryBtn.style.fontSize = '13px';
+    retryBtn.style.padding = '12px';
+  }
+}
+
+function retryQuiz(){
+  buildQuizForUnit(quizFromUnit);
+  startQuiz();
 }
 
 function goNextRoot(){
