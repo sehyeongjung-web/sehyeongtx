@@ -143,6 +143,7 @@ nav{background:rgba(27,58,45,0.95);backdrop-filter:blur(12px);padding:14px 20px;
 <div id="screen-card" class="screen">
   <div class="card-photo-wrap" onclick="nextStep()">
     <img id="cardPhoto" class="card-photo-full" src="" alt="">
+    <video id="cardVideo" class="card-video-full" muted loop playsinline preload="auto" style="display:none;"></video>
     <div class="card-overlay">
       <div id="step0" class="step-q">
         <div class="step-q-mark">?</div>
@@ -602,33 +603,20 @@ function goCard(i){curUnit=i;curStep=0;switchTab("card",document.querySelectorAl
 // 카드 학습
 function renderCard(){
   const c=CARDS[curUnit];
+  const cv = document.getElementById("cardVideo");
+  const cp = document.getElementById("cardPhoto");
   if(c.video) {
-    document.getElementById("cardPhoto").style.display="none";
-    let cv = document.getElementById("cardVideo");
-    if(!cv) {
-      cv = document.createElement("video");
-      cv.id = "cardVideo";
-      cv.className = "card-video-full";
-      cv.autoplay = true;
-      cv.muted = true;
-      cv.loop = true;
-      cv.playsInline = true;
-      cv.preload = "auto";
-      cv.setAttribute("playsinline","");
-      cv.setAttribute("webkit-playsinline","");
-      document.getElementById("cardPhoto").parentNode.insertBefore(cv, document.getElementById("cardPhoto"));
-    }
+    cp.style.display = "none";
     cv.src = c.video;
     cv.style.display = "block";
     cv.load();
-    forcePlay(cv);
+    cv.play().catch(function(){});
   } else {
-    document.getElementById("cardPhoto").style.display="block";
-    document.getElementById("cardPhoto").src=c.photo;
-    const cv = document.getElementById("cardVideo");
-    if(cv) cv.style.display="none";
+    cv.style.display = "none";
+    cv.src = "";
+    cp.src = c.photo;
+    cp.style.display = "block";
   }
-  document.getElementById("cardPhoto").src=c.photo;
   document.getElementById("dots").innerHTML=[0,1,2].map(i=>`<div class="dot ${i===curStep?"on":""}"></div>`).join("");
   document.getElementById("step0").style.display=curStep===0?"block":"none";
   document.getElementById("step1").style.display=curStep===1?"block":"none";
