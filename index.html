@@ -570,9 +570,9 @@ function hlRoot(word,root){
 // 어근 목록
 function renderList(){
   document.getElementById("listGrid").innerHTML=CARDS.map((c,i)=>`
-    <div class="list-card" onclick="goCard(${i})">
+    <div class="list-card" onclick="goCard(${i})" id="listcard-${i}">
       ${c.video
-        ? `<video class="list-video" autoplay muted loop playsinline preload="auto" src="${c.video}" oncanplay="this.play()"></video>`
+        ? `<video class="list-video" muted loop playsinline preload="auto" src="${c.video}" id="lv-${i}"></video>`
         : `<img class="list-photo" src="${c.photo}" alt="${c.root}">`}
       <div class="list-overlay">
         <div class="list-unit">${c.unit}</div>
@@ -795,6 +795,19 @@ function switchTab(id,btn){
 }
 
 renderList();
+
+// 목록 비디오 재생
+setTimeout(function() {
+  CARDS.forEach(function(card, i) {
+    if(card.video) {
+      var v = document.getElementById("lv-"+i);
+      if(v) {
+        v.muted = true;
+        v.play().catch(function(){});
+      }
+    }
+  });
+}, 500);
 </script>
 </body>
 </html>
