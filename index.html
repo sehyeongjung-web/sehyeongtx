@@ -572,7 +572,7 @@ function renderList(){
   document.getElementById("listGrid").innerHTML=CARDS.map((c,i)=>`
     <div class="list-card" onclick="goCard(${i})">
       ${c.video
-        ? `<video class="list-video" autoplay muted loop playsinline src="${c.video}"></video>`
+        ? `<video class="list-video" autoplay muted loop playsinline preload="auto" src="${c.video}" oncanplay="this.play()"></video>`
         : `<img class="list-photo" src="${c.photo}" alt="${c.root}">`}
       <div class="list-overlay">
         <div class="list-unit">${c.unit}</div>
@@ -599,10 +599,15 @@ function renderCard(){
       cv.muted = true;
       cv.loop = true;
       cv.playsInline = true;
+      cv.preload = "auto";
+      cv.setAttribute("playsinline","");
+      cv.setAttribute("webkit-playsinline","");
       document.getElementById("cardPhoto").parentNode.insertBefore(cv, document.getElementById("cardPhoto"));
     }
     cv.src = c.video;
     cv.style.display = "block";
+    cv.load();
+    forcePlay(cv);
   } else {
     document.getElementById("cardPhoto").style.display="block";
     document.getElementById("cardPhoto").src=c.photo;
