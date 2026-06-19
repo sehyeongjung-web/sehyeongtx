@@ -237,6 +237,7 @@ const CARDS = [
     "nuance": "안에서 밖으로 끌어당기는 힘",
     "scene": "활시위를 힘껏 당기는 그 긴장감이 draw의 전부입니다",
     "photo": "https://sehyeongjung-web.github.io/sehyeongtx/draw.jpg",
+    "video": "https://sehyeongjung-web.github.io/sehyeongtx/draw.mp4",
     "words": [
       {
         "en": "그림을 그리다",
@@ -569,15 +570,15 @@ function hlRoot(word,root){
 
 // 어근 목록
 function renderList(){
-  document.getElementById("listGrid").innerHTML=CARDS.map((c,i)=>`
+  document.getElementById("listGrid").innerHTML=CARDS.map((card,i)=>`
     <div class="list-card" onclick="goCard(${i})" id="listcard-${i}">
-      ${c.video
-        ? `<video class="list-video" muted loop playsinline preload="auto" src="${c.video}" id="lv-${i}"></video>`
-        : `<img class="list-photo" src="${c.photo}" alt="${c.root}">`}
+      ${card.video
+        ? `<video class="list-video" muted loop playsinline preload="auto" src="${card.video}" id="lv-${i}"></video>`
+        : `<img class="list-photo" src="${card.photo}" alt="${card.root}">`}
       <div class="list-overlay">
-        <div class="list-unit">${c.unit}</div>
-        <div class="list-root">${c.root}</div>
-        <div class="list-meaning">${c.meaning}</div>
+        <div class="list-unit">${card.unit}</div>
+        <div class="list-root">${card.root}</div>
+        <div class="list-meaning">${card.meaning}</div>
       </div>
       <div class="list-hover"><div class="list-hover-tag">🔍 학습하기</div></div>
     </div>`).join("");
