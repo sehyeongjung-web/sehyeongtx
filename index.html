@@ -675,7 +675,21 @@ function goQPhase(phase){
 
   if(phase===0){
     // 사진 + 어근 선택
-    document.getElementById("quizPhoto").src=curQ.photo;
+    // 사진/동영상 전환
+    const qp = document.getElementById("quizPhoto");
+    const qv = document.getElementById("quizVideo");
+    if(curQ.video) {
+      qp.style.display = "none";
+      qv.src = curQ.video;
+      qv.style.display = "block";
+      qv.load();
+      qv.play().catch(function(){});
+    } else {
+      qv.style.display = "none";
+      qv.src = "";
+      qp.src = curQ.photo;
+      qp.style.display = "block";
+    }
     document.getElementById("quizLabel").textContent=curQ.unit+" · 이 장면의 어근은?";
     document.getElementById("q0feedback").style.display="none";
     document.getElementById("q0next").style.display="none";
