@@ -21,6 +21,9 @@ nav{background:rgba(27,58,45,0.95);backdrop-filter:blur(12px);padding:14px 20px;
 .list-card{border-radius:16px;overflow:hidden;cursor:pointer;position:relative;background:#000;transition:transform 0.15s;}
 .list-card:hover{transform:scale(1.02);}
 .list-photo{width:100%;height:150px;object-fit:cover;display:block;opacity:0.82;}
+.list-video{width:100%;height:150px;object-fit:cover;display:block;opacity:0.82;}
+.card-video-full{width:100%;height:auto;object-fit:contain;display:block;background:#111;max-height:320px;}
+.quiz-video-full{width:100%;height:auto;object-fit:contain;display:block;background:#111;max-height:280px;}
 .list-card:hover .list-photo{opacity:0.88;}
 .list-overlay{position:absolute;bottom:0;left:0;right:0;padding:12px;background:linear-gradient(transparent,rgba(0,0,0,0.82));}
 .list-unit{font-size:10px;color:rgba(255,255,255,0.55);margin-bottom:3px;}
@@ -568,7 +571,9 @@ function hlRoot(word,root){
 function renderList(){
   document.getElementById("listGrid").innerHTML=CARDS.map((c,i)=>`
     <div class="list-card" onclick="goCard(${i})">
-      <img class="list-photo" src="${c.photo}" alt="${c.root}">
+      ${c.video
+        ? `<video class="list-video" autoplay muted loop playsinline src="${c.video}"></video>`
+        : `<img class="list-photo" src="${c.photo}" alt="${c.root}">`}
       <div class="list-overlay">
         <div class="list-unit">${c.unit}</div>
         <div class="list-root">${c.root}</div>
@@ -583,6 +588,27 @@ function goCard(i){curUnit=i;curStep=0;switchTab("card",document.querySelectorAl
 // 카드 학습
 function renderCard(){
   const c=CARDS[curUnit];
+  if(c.video) {
+    document.getElementById("cardPhoto").style.display="none";
+    let cv = document.getElementById("cardVideo");
+    if(!cv) {
+      cv = document.createElement("video");
+      cv.id = "cardVideo";
+      cv.className = "card-video-full";
+      cv.autoplay = true;
+      cv.muted = true;
+      cv.loop = true;
+      cv.playsInline = true;
+      document.getElementById("cardPhoto").parentNode.insertBefore(cv, document.getElementById("cardPhoto"));
+    }
+    cv.src = c.video;
+    cv.style.display = "block";
+  } else {
+    document.getElementById("cardPhoto").style.display="block";
+    document.getElementById("cardPhoto").src=c.photo;
+    const cv = document.getElementById("cardVideo");
+    if(cv) cv.style.display="none";
+  }
   document.getElementById("cardPhoto").src=c.photo;
   document.getElementById("dots").innerHTML=[0,1,2].map(i=>`<div class="dot ${i===curStep?"on":""}"></div>`).join("");
   document.getElementById("step0").style.display=curStep===0?"block":"none";
