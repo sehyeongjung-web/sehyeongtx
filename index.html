@@ -228,7 +228,8 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
       <div class="badge-score" id="bScore"></div>
     </div>
     <button class="next-root-btn" id="nextRootBtn" onclick="goNextRoot()"></button>
-    <button class="flow-btn-secondary" id="retryBtn" onclick="retryQuiz()" style="display:none;">이 어근 다시 풀기 ↻</button>
+    <button class="flow-btn-secondary" id="wrongOnlyBtn" onclick="retryWrongOnly()" style="display:none;">✗ 틀린 것만 다시 풀기</button>
+    <button class="flow-btn-secondary" id="retryBtn" onclick="retryQuiz()" style="display:none;">이 어근 처음부터 다시 ↻</button>
     <button class="all-done-btn" onclick="switchTab('list',document.querySelectorAll('.tab-btn')[0])">전체 목록으로 →</button>
   </div>
 </div>
@@ -615,6 +616,8 @@ const CARDS = [
 
 let cu=0, cs=0;
 let qList=[], qi=0, sc=0, tot=0, wfi=0, wfa=false, cq=null;
+let wrongWords=[]; // 틀린 파생어 기록 {en, ko, rp}
+let wrongRootQuiz=false; // 1단계(어근찾기) 틀렸는지
 let quizFromUnit = 0; // 퀴즈가 어느 어근에서 시작됐는지
 
 // 학습 기록 불러오기 (localStorage)
@@ -772,6 +775,7 @@ function buildQuizForUnit(unitIdx){
   const opts = [...wrongs.map(x=>({root:x.root,meaning:x.meaning})),{root:card.root,meaning:card.meaning}].sort(()=>Math.random()-0.5);
   qList = [{...card, opts}];
   qi=0; sc=0; tot=0;
+  wrongWords=[]; wrongRootQuiz=false;
 }
 
 function updateScore(){
@@ -819,6 +823,7 @@ function goPhase(p){
 
 function ansRoot(chosen,el){
   const ok=chosen===cq.root;
+  if(!ok) wrongRootQuiz=true;
   tot++; if(ok) sc++; updateScore();
   document.querySelectorAll('.opt').forEach(o=>{
     if(o.querySelector('.opt-en').textContent===cq.root) o.classList.add('correct');
@@ -855,6 +860,7 @@ function renderWFQ(){
 function ansWFQ(el,chosen,answer,rp){
   if(wfa) return; wfa=true;
   const ok=chosen===answer;
+  if(!ok) wrongWords.push({en:answer, ko:cq.words[wfi].ko, rp:rp});
   if(ok) sc++; updateScore();
   document.querySelectorAll('.wfq-opt').forEach(o=>{
     o.onclick=null;
@@ -894,6 +900,17 @@ function showBadge(){
     btn.style.display='block';
   }
 
+  // 틀린 문제가 있으면 "틀린 것만 다시 풀기" 버튼 표시
+  const wrongOnlyBtn = document.getElementById('wrongOnlyBtn');
+  const hasWrong = wrongWords.length>0 || wrongRootQuiz;
+  if(hasWrong){
+    wrongOnlyBtn.style.display='block';
+    const wrongCount = wrongWords.length + (wrongRootQuiz?1:0);
+    wrongOnlyBtn.textContent = `✗ 틀린 ${wrongCount}개 문제만 다시 풀기`;
+  } else {
+    wrongOnlyBtn.style.display='none';
+  }
+
   // 정답률이 낮으면 다시 풀기 버튼 강조 표시
   const retryBtn = document.getElementById('retryBtn');
   if(pct < 70){
@@ -922,6 +939,39 @@ function showBadge(){
 function retryQuiz(){
   buildQuizForUnit(quizFromUnit);
   startQuiz();
+}
+
+function retryWrongOnly(){
+  const card = CARDS[quizFromUnit];
+  const wasRootWrong = wrongRootQuiz;
+  const wrongEnSet = new Set(wrongWords.map(w=>w.en));
+  const filteredWords = card.words.filter(w=>wrongEnSet.has(w.en));
+
+  if(filteredWords.length===0 && !wasRootWrong){
+    retryQuiz();
+    return;
+  }
+
+  const wrongs = CARDS.filter((_,i)=>i!==quizFromUnit).sort(()=>Math.random()-0.5).slice(0,3);
+  const opts = [...wrongs.map(x=>({root:x.root,meaning:x.meaning})),{root:card.root,meaning:card.meaning}].sort(()=>Math.random()-0.5);
+
+  cq = {...card, opts, words: filteredWords.length>0 ? filteredWords : card.words};
+  qList=[cq]; qi=0; sc=0; tot=0;
+  wrongWords=[]; wrongRootQuiz=false;
+  updateScore();
+
+  // 어근 자체를 틀렸으면 1단계부터, 아니면 바로 3단계(파생어 퀴즈)로
+  if(wasRootWrong){
+    updateBar(0);
+    goPhase(0);
+  } else {
+    updateBar(2);
+    document.getElementById('qp0').style.display='none';
+    document.getElementById('qp1').style.display='none';
+    document.getElementById('qp2').style.display='block';
+    document.getElementById('qbadge').style.display='none';
+    wfi=0; wfa=false; renderWFQ();
+  }
 }
 
 function goNextRoot(){
