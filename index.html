@@ -116,6 +116,20 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 .badge-score{font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:16px;}
 .next-root-btn{width:100%;padding:14px;border-radius:12px;background:#C8A84B;color:#1B3A2D;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:8px;}
 .all-done-btn{width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);font-size:13px;border:0.5px solid rgba(255,255,255,0.15);cursor:pointer;}
+
+.speak-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(200,168,75,0.15);border:0.5px solid rgba(200,168,75,0.3);color:#C8A84B;font-size:13px;cursor:pointer;margin-left:6px;flex-shrink:0;vertical-align:middle;}
+.speak-btn:active{background:rgba(200,168,75,0.35);}
+.word-en-row{display:flex;align-items:center;}
+.mode-toggle{display:flex;gap:6px;margin-bottom:10px;}
+.mode-btn{flex:1;padding:8px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;border:0.5px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);}
+.mode-btn.on{background:#C8A84B;color:#1B3A2D;border-color:#C8A84B;}
+.type-input-wrap{margin-bottom:10px;}
+.type-input{width:100%;padding:14px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.07);color:#fff;font-size:18px;font-weight:600;text-align:center;outline:none;}
+.type-input:focus{border-color:#C8A84B;}
+.type-input.correct{border-color:#4A7C59;background:rgba(44,95,45,0.25);color:#A5D6A7;}
+.type-input.wrong{border-color:#C0392B;background:rgba(192,57,43,0.2);color:#EF9A9A;}
+.type-submit{width:100%;padding:12px;border-radius:10px;background:#C8A84B;color:#1B3A2D;font-size:13px;font-weight:700;border:none;cursor:pointer;margin-top:8px;}
+.type-hint{font-size:11px;color:rgba(255,255,255,0.35);text-align:center;margin-top:6px;}
 </style>
 </head>
 <body>
@@ -162,7 +176,7 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
         <div class="step-q-hint">탭해서 확인하기 →</div>
       </div>
       <div id="step1" class="step-reveal" style="display:none;">
-        <div class="step-root-big" id="s1root"></div>
+        <div class="step-root-big" id="s1root" style="cursor:pointer;" onclick="event.stopPropagation();speak(CARDS[cu].root.split('/')[0])" title="탭하면 발음을 들을 수 있어요">🔊 <span id="s1rootText"></span></div>
         <div class="gold-bar"></div>
         <div class="step-nuance" id="s1nuance"></div>
         <div class="step-latin" id="s1latin"></div>
@@ -215,8 +229,17 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 
   <div id="qp2" style="display:none;">
     <div style="font-size:10px;font-weight:700;color:#C8A84B;letter-spacing:0.08em;margin-bottom:8px;">이 뜻의 영어 단어는?</div>
+    <div class="mode-toggle">
+      <button class="mode-btn" id="modeChoiceBtn" onclick="setWfqMode('choice')">🔤 선택형</button>
+      <button class="mode-btn" id="modeTypeBtn" onclick="setWfqMode('type')">⌨️ 타이핑형</button>
+    </div>
     <div class="wfq-ko" id="wfqKo"></div>
     <div class="wfq-opts" id="wfqOpts"></div>
+    <div class="type-input-wrap" id="typeInputWrap" style="display:none;">
+      <input type="text" class="type-input" id="typeInput" placeholder="영어로 입력하세요" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="type-submit" onclick="submitTypeAnswer()">확인</button>
+      <div class="type-hint">정답의 첫 글자만 맞아도 정답 처리돼요</div>
+    </div>
     <div class="q-fb" id="wfqFb"></div>
     <button class="action-btn" id="q2next" onclick="quizDone()">완료 →</button>
   </div>
@@ -235,6 +258,19 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 </div>
 
 <script>
+// 발음 듣기 (Web Speech API)
+function speak(text){
+  try{
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+    }
+  }catch(e){}
+}
+
 const CARDS = [
   {
     "unit": "특별편",
@@ -618,6 +654,21 @@ let cu=0, cs=0;
 let qList=[], qi=0, sc=0, tot=0, wfi=0, wfa=false, cq=null;
 let wrongWords=[]; // 틀린 파생어 기록 {en, ko, rp}
 let wrongRootQuiz=false; // 1단계(어근찾기) 틀렸는지
+let wfqMode = localStorage.getItem('rootword_wfqmode') || 'choice'; // 'choice' or 'type'
+
+function setWfqMode(mode){
+  wfqMode = mode;
+  try{ localStorage.setItem('rootword_wfqmode', mode); }catch(e){}
+  document.getElementById('modeChoiceBtn').className = 'mode-btn'+(mode==='choice'?' on':'');
+  document.getElementById('modeTypeBtn').className = 'mode-btn'+(mode==='type'?' on':'');
+  document.getElementById('wfqOpts').style.display = mode==='choice'?'grid':'none';
+  document.getElementById('typeInputWrap').style.display = mode==='type'?'block':'none';
+  if(mode==='type'){
+    const inp = document.getElementById('typeInput');
+    inp.value=''; inp.className='type-input';
+    setTimeout(()=>inp.focus(),100);
+  }
+}
 let quizFromUnit = 0; // 퀴즈가 어느 어근에서 시작됐는지
 
 // 학습 기록 불러오기 (localStorage)
@@ -745,14 +796,17 @@ function renderCard(){
   document.getElementById('step0').style.display = cs===0?'block':'none';
   document.getElementById('step1').style.display = cs===1?'block':'none';
   document.getElementById('step2').style.display = cs===2?'block':'none';
-  document.getElementById('s1root').textContent = card.root;
+  document.getElementById('s1rootText').textContent = card.root;
   document.getElementById('s1nuance').textContent = card.meaning;
   document.getElementById('s1latin').textContent = card.latin;
   document.getElementById('s1scene').textContent = card.scene;
   document.getElementById('s2title').textContent = `'${card.meaning}'로 모든 뜻이 풀립니다`;
   document.getElementById('wordsGrid').innerHTML = card.words.map(w=>`
     <div class="word-box">
-      <div class="word-en">${hl(w.en,w.rp)}</div>
+      <div class="word-en-row">
+        <div class="word-en">${hl(w.en,w.rp)}</div>
+        <button class="speak-btn" onclick="event.stopPropagation();speak('${w.en.replace(/'/g,"\\'")}')">🔊</button>
+      </div>
       <div class="word-ko">${w.ko}</div>
       ${w.ex?`<div class="word-ex">${w.ex}</div>`:''}
     </div>`).join('');
@@ -864,22 +918,60 @@ function ansRoot(chosen,el){
 function renderWFQ(){
   document.getElementById('wfqFb').style.display='none';
   document.getElementById('q2next').style.display='none';
+  document.getElementById('modeChoiceBtn').className = 'mode-btn'+(wfqMode==='choice'?' on':'');
+  document.getElementById('modeTypeBtn').className = 'mode-btn'+(wfqMode==='type'?' on':'');
   wfa=false;
   if(wfi>=cq.words.length){
     document.getElementById('wfqKo').textContent='이 어근 완료! 🎉';
     document.getElementById('wfqOpts').innerHTML='';
+    document.getElementById('wfqOpts').style.display='none';
+    document.getElementById('typeInputWrap').style.display='none';
+    document.querySelector('.mode-toggle').style.display='none';
     document.getElementById('q2next').style.display='block';
     return;
   }
+  document.querySelector('.mode-toggle').style.display='flex';
   const w=cq.words[wfi];
   document.getElementById('wfqKo').textContent=w.ko;
-  const others=cq.words.filter((_,i)=>i!==wfi).sort(()=>Math.random()-0.5).slice(0,3).map(x=>x.en);
-  const opts=[...others,w.en].sort(()=>Math.random()-0.5);
   tot++;
-  document.getElementById('wfqOpts').innerHTML=opts.map(o=>`
-    <div class="wfq-opt" onclick="ansWFQ(this,'${o.replace(/'/g,"\'")}','${w.en.replace(/'/g,"\'")}','${(w.rp||'').replace(/'/g,"\'")}')">
-      ${hl(o,w.rp)}
-    </div>`).join('');
+
+  if(wfqMode==='choice'){
+    document.getElementById('wfqOpts').style.display='grid';
+    document.getElementById('typeInputWrap').style.display='none';
+    const others=cq.words.filter((_,i)=>i!==wfi).sort(()=>Math.random()-0.5).slice(0,3).map(x=>x.en);
+    const opts=[...others,w.en].sort(()=>Math.random()-0.5);
+    document.getElementById('wfqOpts').innerHTML=opts.map(o=>`
+      <div class="wfq-opt" onclick="ansWFQ(this,'${o.replace(/'/g,"\'")}','${w.en.replace(/'/g,"\'")}','${(w.rp||'').replace(/'/g,"\'")}')">
+        ${hl(o,w.rp)}
+      </div>`).join('');
+  } else {
+    document.getElementById('wfqOpts').style.display='none';
+    document.getElementById('typeInputWrap').style.display='block';
+    const inp = document.getElementById('typeInput');
+    inp.value=''; inp.className='type-input'; inp.disabled=false;
+    inp.onkeydown = function(e){ if(e.key==='Enter') submitTypeAnswer(); };
+    setTimeout(()=>inp.focus(),100);
+  }
+}
+
+function submitTypeAnswer(){
+  if(wfa) return;
+  const w = cq.words[wfi];
+  const inp = document.getElementById('typeInput');
+  const typed = inp.value.trim().toLowerCase();
+  const answer = w.en.toLowerCase();
+  if(!typed) return;
+  wfa=true;
+  const ok = typed===answer;
+  if(!ok) wrongWords.push({en:w.en, ko:w.ko, rp:w.rp});
+  if(ok) sc++; updateScore();
+  inp.disabled=true;
+  inp.className = 'type-input '+(ok?'correct':'wrong');
+  if(!ok) inp.value = w.en;
+  const fb=document.getElementById('wfqFb');
+  fb.style.display='block'; fb.className='q-fb '+(ok?'fb-ok':'fb-no');
+  fb.innerHTML=ok?`✓ 정답! ${hl(w.en,w.rp)} = ${w.ko}`:`✗ 정답은 ${hl(w.en,w.rp)} = ${w.ko}`;
+  setTimeout(()=>{ wfi++; wfa=false; renderWFQ(); },1300);
 }
 
 function ansWFQ(el,chosen,answer,rp){
