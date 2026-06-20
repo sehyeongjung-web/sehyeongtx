@@ -144,9 +144,58 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 .hint-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:11px;cursor:pointer;margin-top:10px;}
 .hint-btn:active{background:rgba(255,255,255,0.18);}
 .hint-text{font-size:12px;color:#C8A84B;margin-top:8px;display:none;}
+
+.philo-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.philo-modal{background:#1B3A2D;border-radius:20px;padding:28px 22px;max-width:380px;width:100%;border:0.5px solid rgba(200,168,75,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+.philo-title{font-size:19px;font-weight:700;color:#fff;text-align:center;margin-bottom:4px;}
+.philo-sub{font-size:12px;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:18px;}
+.philo-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:11px 12px;}
+.philo-emoji{font-size:20px;flex-shrink:0;}
+.philo-stat{font-size:18px;font-weight:700;color:#C8A84B;}
+.philo-text{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.5;}
+.philo-source{font-size:10px;color:rgba(200,168,75,0.6);margin-top:3px;font-style:italic;}
+.philo-close-btn{width:100%;padding:13px;border-radius:12px;background:#C8A84B;color:#1B3A2D;font-size:14px;font-weight:700;border:none;cursor:pointer;margin-top:6px;}
+.philo-skip{display:block;text-align:center;font-size:11px;color:rgba(255,255,255,0.35);margin-top:12px;background:none;border:none;cursor:pointer;width:100%;}
 </style>
 </head>
 <body>
+
+<div class="philo-overlay" id="philoOverlay" style="display:none;">
+  <div class="philo-modal">
+    <div class="philo-title">외우지 마세요. 이해하세요.</div>
+    <div class="philo-sub">왜 사진과 동영상으로 배우는가</div>
+
+    <div class="philo-row">
+      <div class="philo-emoji">🧠</div>
+      <div>
+        <span class="philo-stat">6.5배</span>
+        <div class="philo-text">사진으로 배운 단어는 텍스트보다 6.5배 더 오래 기억에 남아요</div>
+        <div class="philo-source">— Medina, Brain Rules (2008)</div>
+      </div>
+    </div>
+
+    <div class="philo-row">
+      <div class="philo-emoji">🔗</div>
+      <div>
+        <span class="philo-stat">2배</span>
+        <div class="philo-text">그림과 언어를 함께 보면 기억 경로가 2배로 늘어나요</div>
+        <div class="philo-source">— Paivio, Dual Coding Theory (1971)</div>
+      </div>
+    </div>
+
+    <div class="philo-row">
+      <div class="philo-emoji">💡</div>
+      <div>
+        <span class="philo-stat">1개</span>
+        <div class="philo-text">핵심 장면 하나만 이해하면 수십 개 단어가 저절로 풀려요</div>
+        <div class="philo-source">— Rosch, Prototype Theory (1970s)</div>
+      </div>
+    </div>
+
+    <button class="philo-close-btn" onclick="closePhiloModal()">시작하기 →</button>
+    <button class="philo-skip" onclick="closePhiloModal()">다시 보지 않기</button>
+  </div>
+</div>
 
 <nav>
   <div class="nav-logo">3000 그림단어책</div>
@@ -1136,7 +1185,21 @@ function switchTab(id,btn){
   if(id==='quiz'){ buildQuizForUnit(cu); startQuiz(); }
 }
 
+function closePhiloModal(){
+  document.getElementById('philoOverlay').style.display='none';
+  try{ localStorage.setItem('rootword_seen_philo','1'); }catch(e){}
+}
+
+function checkPhiloModal(){
+  try{
+    if(!localStorage.getItem('rootword_seen_philo')){
+      document.getElementById('philoOverlay').style.display='flex';
+    }
+  }catch(e){}
+}
+
 renderList();
+checkPhiloModal();
 </script>
 </body>
 </html>
