@@ -678,15 +678,9 @@ let wfqMode = localStorage.getItem('rootword_wfqmode') || 'choice'; // 'choice' 
 function setWfqMode(mode){
   wfqMode = mode;
   try{ localStorage.setItem('rootword_wfqmode', mode); }catch(e){}
-  document.getElementById('modeChoiceBtn').className = 'mode-btn'+(mode==='choice'?' on':'');
-  document.getElementById('modeTypeBtn').className = 'mode-btn'+(mode==='type'?' on':'');
-  document.getElementById('wfqOpts').style.display = mode==='choice'?'grid':'none';
-  document.getElementById('typeInputWrap').style.display = mode==='type'?'block':'none';
-  if(mode==='type'){
-    const inp = document.getElementById('typeInput');
-    inp.value=''; inp.className='type-input';
-    setTimeout(()=>inp.focus(),100);
-  }
+  // 이미 답을 제출한 상태(wfa=true)면 모드만 바꾸지 않고 현재 문제를 다시 렌더링
+  wfa = false;
+  renderWFQ();
 }
 let quizFromUnit = 0; // 퀴즈가 어느 어근에서 시작됐는지
 
@@ -889,7 +883,7 @@ function buildQuizForUnit(unitIdx){
   const opts = [...wrongs.map(x=>({root:x.root,meaning:x.meaning})),{root:card.root,meaning:card.meaning}].sort(()=>Math.random()-0.5);
   qList = [{...card, opts}];
   qi=0; sc=0; tot=0;
-  wrongWords=[]; wrongRootQuiz=false;
+  wrongWords=[]; wrongRootQuiz=false; wfiCounted=-1;
 }
 
 function updateScore(){
@@ -968,7 +962,7 @@ function renderWFQ(){
   document.querySelector('.mode-toggle').style.display='flex';
   const w=cq.words[wfi];
   document.getElementById('wfqKo').textContent=w.ko;
-  tot++;
+  if(wfiCounted!==wfi){ tot++; wfiCounted=wfi; updateScore(); }
 
   if(wfqMode==='choice'){
     document.getElementById('wfqOpts').style.display='grid';
@@ -1110,7 +1104,7 @@ function retryWrongOnly(){
 
   cq = {...card, opts, words: filteredWords.length>0 ? filteredWords : card.words};
   qList=[cq]; qi=0; sc=0; tot=0;
-  wrongWords=[]; wrongRootQuiz=false;
+  wrongWords=[]; wrongRootQuiz=false; wfiCounted=-1;
   updateScore();
 
   // 어근 자체를 틀렸으면 1단계부터, 아니면 바로 3단계(파생어 퀴즈)로
