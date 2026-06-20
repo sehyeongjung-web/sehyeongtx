@@ -177,7 +177,7 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
   <div class="dots" id="dots"></div>
   <div class="card-nav">
     <button class="cnav" onclick="prevUnit()">← 이전</button>
-    <button class="cnav primary" onclick="nextStep()">다음 단계</button>
+    <button class="cnav primary" id="nextStepBtn" onclick="nextStep()">다음 단계</button>
     <button class="cnav" onclick="nextUnit()">다음 →</button>
   </div>
   <!-- 3단계 완료 후 퀴즈로 이동 버튼 -->
@@ -663,6 +663,7 @@ function renderMedia(containerId, card){
 
 // 어근 목록
 function renderList(){
+  doneUnits = loadProgress(); // 항상 최신 저장값으로 갱신
   document.getElementById('listGrid').innerHTML = CARDS.map((card,i)=>`
     <div class="list-card ${doneUnits.has(i)?'done':''}" onclick="goCard(${i})">
       ${card.video
@@ -731,12 +732,23 @@ function renderCard(){
   // 3단계 완료 버튼
   const goQuizBtn = document.getElementById('goQuizBtn');
   const skipQuizBtn = document.getElementById('skipQuizBtn');
+  const nextStepBtn = document.getElementById('nextStepBtn');
   if(cs===2){
     goQuizBtn.style.display='block';
     skipQuizBtn.style.display='block';
+    nextStepBtn.textContent = '↑ 위에서 퀴즈를 풀어보세요';
+    nextStepBtn.style.opacity = '0.4';
+    nextStepBtn.style.cursor = 'default';
+    nextStepBtn.style.background = 'rgba(255,255,255,0.06)';
+    nextStepBtn.style.color = 'rgba(255,255,255,0.5)';
   } else {
     goQuizBtn.style.display='none';
     skipQuizBtn.style.display='none';
+    nextStepBtn.textContent = '다음 단계';
+    nextStepBtn.style.opacity = '1';
+    nextStepBtn.style.cursor = 'pointer';
+    nextStepBtn.style.background = '#C8A84B';
+    nextStepBtn.style.color = '#1B3A2D';
   }
 }
 
