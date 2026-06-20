@@ -130,6 +130,20 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 .type-input.wrong{border-color:#C0392B;background:rgba(192,57,43,0.2);color:#EF9A9A;}
 .type-submit{width:100%;padding:12px;border-radius:10px;background:#C8A84B;color:#1B3A2D;font-size:13px;font-weight:700;border:none;cursor:pointer;margin-top:8px;}
 .type-hint{font-size:11px;color:rgba(255,255,255,0.35);text-align:center;margin-top:6px;}
+
+.card-quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.card-opt{padding:11px 8px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);cursor:pointer;text-align:center;font-size:15px;font-weight:700;color:#fff;}
+.card-opt:hover{background:rgba(255,255,255,0.14);}
+.card-opt.correct{background:rgba(44,95,45,0.5);border-color:#4A7C59;color:#A5D6A7;}
+.card-opt.wrong{background:rgba(192,57,43,0.4);border-color:#C0392B;color:#EF9A9A;}
+.hint-btn{font-size:11px;color:rgba(200,168,75,0.85);background:rgba(200,168,75,0.12);border:0.5px solid rgba(200,168,75,0.3);border-radius:14px;padding:5px 12px;cursor:pointer;margin-top:10px;display:inline-block;}
+.hint-text{font-size:12px;color:#C8A84B;margin-top:8px;display:none;}
+
+.card-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.card-opt{padding:11px 8px;border-radius:10px;border:0.5px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.1);font-size:14px;font-weight:700;color:#fff;text-align:center;}
+.hint-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:11px;cursor:pointer;margin-top:10px;}
+.hint-btn:active{background:rgba(255,255,255,0.18);}
+.hint-text{font-size:12px;color:#C8A84B;margin-top:8px;display:none;}
 </style>
 </head>
 <body>
@@ -173,6 +187,11 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
       <div id="step0" class="step-q">
         <div class="step-q-mark">?</div>
         <div class="step-q-text">이 장면의 어근은 무엇일까요?</div>
+        <div class="card-opts" id="cardOpts" onclick="event.stopPropagation()"></div>
+        <div onclick="event.stopPropagation()">
+          <button class="hint-btn" id="hintBtn" onclick="showHint()">👁 힌트 보기</button>
+          <div class="hint-text" id="hintText"></div>
+        </div>
         <div class="step-q-hint">탭해서 확인하기 →</div>
       </div>
       <div id="step1" class="step-reveal" style="display:none;">
@@ -792,6 +811,14 @@ function renderCard(){
   renderMedia('cardMediaInner', card);
   document.getElementById('cardUnit').textContent = card.unit + ' · ' + card.root;
   document.getElementById('cardNav').textContent = (cu+1) + ' / ' + CARDS.length;
+
+  // 1단계 보기 4개 생성 (정답 + 오답 3개)
+  const wrongCards = CARDS.filter(x=>x.root!==card.root).sort(()=>Math.random()-0.5).slice(0,3);
+  const cardOptsList = [...wrongCards.map(x=>x.root), card.root].sort(()=>Math.random()-0.5);
+  document.getElementById('cardOpts').innerHTML = cardOptsList.map(r=>`<div class="card-opt">${r}</div>`).join('');
+  document.getElementById('hintBtn').style.display='inline-flex';
+  document.getElementById('hintText').style.display='none';
+  document.getElementById('hintText').textContent='';
   document.getElementById('dots').innerHTML = [0,1,2].map(i=>`<div class="dot ${i===cs?'on':''}"></div>`).join('');
   document.getElementById('step0').style.display = cs===0?'block':'none';
   document.getElementById('step1').style.display = cs===1?'block':'none';
@@ -832,6 +859,14 @@ function renderCard(){
     nextStepBtn.style.background = '#C8A84B';
     nextStepBtn.style.color = '#1B3A2D';
   }
+}
+
+function showHint(){
+  const card = CARDS[cu];
+  const firstLetter = card.root.split('/')[0].charAt(0).toUpperCase();
+  document.getElementById('hintText').textContent = `힌트: '${firstLetter}'로 시작해요`;
+  document.getElementById('hintText').style.display='block';
+  document.getElementById('hintBtn').style.display='none';
 }
 
 function nextStep(){
