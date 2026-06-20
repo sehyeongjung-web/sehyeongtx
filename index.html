@@ -134,8 +134,8 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 <!-- 어근 목록 -->
 <div id="screen-list" class="screen on">
   <div class="start-banner">
-    <div class="start-banner-title">외우지 마세요. 이해하세요.</div>
-    <div class="start-banner-sub">사진 한 장으로 어근의 뉘앙스를 이해하면<br>수십 개의 단어가 저절로 보이기 시작합니다</div>
+    <div class="start-banner-title" id="bannerTitle">외우지 마세요. 이해하세요.</div>
+    <div class="start-banner-sub" id="bannerSub">사진 한 장으로 어근의 뉘앙스를 이해하면<br>수십 개의 단어가 저절로 보이기 시작합니다</div>
     <button class="start-btn" onclick="startLearning()">draw부터 시작하기 →</button>
   </div>
   <div class="list-title">전체 어근 목록</div>
@@ -616,7 +616,29 @@ const CARDS = [
 let cu=0, cs=0;
 let qList=[], qi=0, sc=0, tot=0, wfi=0, wfa=false, cq=null;
 let quizFromUnit = 0; // 퀴즈가 어느 어근에서 시작됐는지
-let doneUnits = new Set(); // 완료된 어근
+
+// 학습 기록 불러오기 (localStorage)
+function loadProgress(){
+  try{
+    const saved = localStorage.getItem('rootword_progress');
+    if(saved){
+      const data = JSON.parse(saved);
+      return new Set(data.doneUnits || []);
+    }
+  }catch(e){}
+  return new Set();
+}
+
+function saveProgress(){
+  try{
+    localStorage.setItem('rootword_progress', JSON.stringify({
+      doneUnits: Array.from(doneUnits),
+      lastVisit: new Date().toISOString()
+    }));
+  }catch(e){}
+}
+
+let doneUnits = loadProgress(); // 완료된 어근 (저장된 기록 불러오기)
 
 function hl(w,r){
   if(!r) return w;
@@ -659,8 +681,22 @@ function renderList(){
   // 시작 버튼 텍스트 업데이트
   const nextIdx = CARDS.findIndex((_,i)=>!doneUnits.has(i));
   const btn = document.querySelector('.start-btn');
-  if(nextIdx>=0) btn.textContent = CARDS[nextIdx].root+'부터 시작하기 →';
-  else btn.textContent = '처음부터 다시 시작 →';
+  const titleEl = document.getElementById('bannerTitle');
+  const subEl = document.getElementById('bannerSub');
+
+  if(doneUnits.size===0){
+    titleEl.textContent = '외우지 마세요. 이해하세요.';
+    subEl.innerHTML = '사진 한 장으로 어근의 뉘앙스를 이해하면<br>수십 개의 단어가 저절로 보이기 시작합니다';
+    btn.textContent = CARDS[0].root+'부터 시작하기 →';
+  } else if(nextIdx>=0){
+    titleEl.textContent = '다시 오셨네요! 👋';
+    subEl.innerHTML = `지금까지 <strong style="color:#C8A84B;">${doneUnits.size}개</strong> 어근을 배우셨어요<br>이어서 학습을 계속해 보세요`;
+    btn.textContent = CARDS[nextIdx].root+'부터 이어하기 →';
+  } else {
+    titleEl.textContent = '모든 어근을 완료했어요! 🎉';
+    subEl.innerHTML = '8개 어근을 전부 마스터하셨어요<br>복습하고 싶은 어근을 다시 선택해 보세요';
+    btn.textContent = '처음부터 복습하기 →';
+  }
 }
 
 function startLearning(){
@@ -831,8 +867,9 @@ function showBadge(){
   [0,1,2].forEach(i=>document.getElementById('qs'+i).className='qstep done');
   document.getElementById('qstepLbl').textContent='퀴즈 완료!';
 
-  // 완료 처리
+  // 완료 처리 + 저장
   doneUnits.add(quizFromUnit);
+  saveProgress();
 
   // 다음 어근 버튼
   const nextIdx = quizFromUnit+1 < CARDS.length ? quizFromUnit+1 : -1;
