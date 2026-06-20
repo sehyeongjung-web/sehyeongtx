@@ -621,11 +621,14 @@ let wrongRootQuiz=false; // 1단계(어근찾기) 틀렸는지
 let quizFromUnit = 0; // 퀴즈가 어느 어근에서 시작됐는지
 
 // 학습 기록 불러오기 (localStorage)
+let unitScores = {}; // {unitIdx: {pct, date}}
+
 function loadProgress(){
   try{
     const saved = localStorage.getItem('rootword_progress');
     if(saved){
       const data = JSON.parse(saved);
+      unitScores = data.scores || {};
       return new Set(data.doneUnits || []);
     }
   }catch(e){}
@@ -636,6 +639,7 @@ function saveProgress(){
   try{
     localStorage.setItem('rootword_progress', JSON.stringify({
       doneUnits: Array.from(doneUnits),
+      scores: unitScores,
       lastVisit: new Date().toISOString()
     }));
   }catch(e){}
@@ -708,7 +712,28 @@ function startLearning(){
   goCard(nextIdx>=0 ? nextIdx : 0);
 }
 
-function goCard(i){ cu=i; cs=0; switchTab('card',document.querySelectorAll('.tab-btn')[1]); renderCard(); }
+function goCard(i){
+  cu=i; cs=0;
+  switchTab('card',document.querySelectorAll('.tab-btn')[1]);
+  renderCard();
+  showRevisitBanner(i);
+}
+
+function showRevisitBanner(i){
+  const existing = document.getElementById('revisitBanner');
+  if(existing) existing.remove();
+
+  const score = unitScores[i];
+  if(score){
+    const pct = score.pct;
+    const banner = document.createElement('div');
+    banner.id = 'revisitBanner';
+    banner.style.cssText = 'background:rgba(200,168,75,0.12);border:0.5px solid rgba(200,168,75,0.3);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:rgba(255,255,255,0.75);text-align:center;';
+    banner.innerHTML = `다시 오셨네요! 👋 이전 퀴즈 정답률 <strong style="color:#C8A84B;">${pct}%</strong>`;
+    const header = document.querySelector('#screen-card .card-header');
+    header.parentNode.insertBefore(banner, header.nextSibling);
+  }
+}
 
 // 카드 학습
 function renderCard(){
@@ -885,8 +910,9 @@ function showBadge(){
   [0,1,2].forEach(i=>document.getElementById('qs'+i).className='qstep done');
   document.getElementById('qstepLbl').textContent='퀴즈 완료!';
 
-  // 완료 처리 + 저장
+  // 완료 처리 + 점수 + 저장
   doneUnits.add(quizFromUnit);
+  unitScores[quizFromUnit] = { pct: pct, date: new Date().toISOString() };
   saveProgress();
 
   // 다음 어근 버튼
