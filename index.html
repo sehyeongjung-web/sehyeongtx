@@ -3,272 +3,215 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3000 그림단어책 — 외우지 마세요. 이해하세요.</title>
+<title>그루앙스 3000 — 외우지 마세요. 이해하세요.</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#F5F0E8;color:#1B3A2D;}
-a{text-decoration:none;}
+:root{
+  --dark:#1B3A2D;
+  --gold:#C8A84B;
+  --white:#fff;
+  --gray:rgba(255,255,255,0.55);
+  --card-bg:rgba(255,255,255,0.06);
+  --border:rgba(255,255,255,0.12);
+}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--dark);color:var(--white);line-height:1.6;}
 
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(245,240,232,0.95);backdrop-filter:blur(12px);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid rgba(27,58,45,0.1);}
-.nav-logo{font-size:16px;font-weight:700;color:#1B3A2D;}
-.nav-btn{padding:8px 18px;border-radius:20px;background:#1B3A2D;color:#fff;font-size:13px;font-weight:600;}
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(27,58,45,0.95);backdrop-filter:blur(12px);border-bottom:0.5px solid var(--border);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;}
+.nav-logo{font-size:16px;font-weight:700;color:var(--gold);}
+.nav-cta{padding:8px 18px;border-radius:20px;background:var(--gold);color:var(--dark);font-size:13px;font-weight:700;text-decoration:none;}
 
-.hero{padding:110px 24px 56px;text-align:center;max-width:640px;margin:0 auto;}
-.hero-tag{font-size:11px;font-weight:600;color:#4A7C59;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:16px;}
-.hero h1{font-size:clamp(34px,8vw,60px);font-weight:700;line-height:1.18;letter-spacing:-0.02em;margin-bottom:14px;}
-.hero h1 span{color:#2C5F2D;}
-.hero p{font-size:15px;color:#4A7C59;line-height:1.75;margin-bottom:32px;}
-.hero-cta{display:inline-block;padding:16px 40px;border-radius:50px;background:#1B3A2D;color:#fff;font-size:16px;font-weight:700;cursor:pointer;border:none;transition:opacity 0.2s;}
-.hero-cta:hover{opacity:0.85;}
-.scroll-hint{margin-top:48px;font-size:20px;color:#4A7C59;opacity:0.4;animation:bounce 2s infinite;}
-@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+/* HERO */
+.hero{padding:72px 24px 56px;text-align:center;max-width:600px;margin:0 auto;}
+.hero-eyebrow{font-size:12px;font-weight:600;letter-spacing:0.15em;color:var(--gold);text-transform:uppercase;margin-bottom:20px;}
+.hero-title{font-size:clamp(36px,8vw,56px);font-weight:700;line-height:1.15;margin-bottom:20px;}
+.hero-title span{color:var(--gold);}
+.hero-sub{font-size:16px;color:var(--gray);line-height:1.7;margin-bottom:36px;}
+.hero-btn{display:inline-block;padding:16px 36px;background:var(--gold);color:var(--dark);border-radius:30px;font-size:16px;font-weight:700;text-decoration:none;transition:opacity 0.15s;}
+.hero-btn:hover{opacity:0.88;}
 
-section{padding:64px 24px;}
-.section-inner{max-width:860px;margin:0 auto;}
-.section-tag{font-size:11px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px;text-align:center;}
-.section-h2{font-size:clamp(24px,4vw,34px);font-weight:700;line-height:1.25;text-align:center;margin-bottom:32px;}
+/* SECTION TITLE */
+.sec-title{text-align:center;margin-bottom:32px;}
+.sec-eyebrow{font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+.sec-head{font-size:clamp(22px,5vw,30px);font-weight:700;line-height:1.3;}
+.sec-head em{color:var(--gold);font-style:normal;}
 
-.tab-row{display:flex;gap:8px;justify-content:center;margin-bottom:18px;flex-wrap:wrap;}
-.tab{padding:8px 20px;border-radius:24px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;}
-.tab.active{background:#1B3A2D;color:#fff;}
-.tab.inactive{background:rgba(27,58,45,0.1);color:#1B3A2D;}
+/* DEMO CARDS */
+.demo-section{padding:56px 20px;max-width:900px;margin:0 auto;}
+.demo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+.demo-card{background:var(--card-bg);border:0.5px solid var(--border);border-radius:18px;overflow:hidden;cursor:pointer;}
+.demo-media{width:100%;aspect-ratio:16/9;background:#000;position:relative;overflow:hidden;}
+.demo-media video{width:100%;height:100%;object-fit:cover;display:block;}
+.demo-body{padding:16px;}
+.demo-root{font-size:24px;font-weight:700;color:var(--gold);margin-bottom:4px;}
+.demo-meaning{font-size:13px;color:var(--gray);margin-bottom:12px;}
+.demo-words{display:flex;flex-wrap:wrap;gap:6px;}
+.demo-word{font-size:12px;padding:4px 10px;border-radius:12px;background:rgba(200,168,75,0.12);color:var(--gold);border:0.5px solid rgba(200,168,75,0.25);}
+.demo-hint{font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px;text-align:center;}
 
-.demo-card{border-radius:18px;overflow:hidden;cursor:pointer;max-width:420px;margin:0 auto;background:#000;position:relative;min-height:280px;}
-.demo-card video,.demo-card img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}
-.demo-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:22px;background:linear-gradient(transparent,rgba(0,0,0,0.55) 40%,rgba(0,0,0,0.92));}
-.demo-step{display:none;}
-.demo-step.on{display:block;}
-.demo-tag{font-size:11px;color:rgba(255,255,255,0.55);letter-spacing:0.1em;margin-bottom:8px;text-transform:uppercase;}
-.demo-q-mark{font-size:36px;font-weight:700;color:#C8A84B;margin-bottom:4px;}
-.demo-q-text{font-size:15px;color:rgba(255,255,255,0.9);}
-.demo-root{font-size:44px;font-weight:700;color:#fff;line-height:1.1;margin-bottom:6px;text-align:center;}
-.demo-gold{width:36px;height:3px;background:#C8A84B;margin:8px auto;}
-.demo-nuance{font-size:18px;font-weight:700;color:#C8A84B;text-align:center;}
-.demo-hint{font-size:12px;color:rgba(255,255,255,0.4);margin-top:10px;text-align:right;}
-.demo-words{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
-.demo-word-box{background:rgba(255,255,255,0.1);border-radius:10px;padding:9px 11px;}
-.demo-word-en{font-size:13px;font-weight:700;color:#fff;}
-.demo-word-en span{color:#E74C3C;}
-.demo-word-ko{font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;}
-.demo-caption{text-align:center;font-size:12px;color:#8A9E8D;margin-top:16px;}
+/* SCIENCE */
+.science-section{padding:56px 24px;background:rgba(0,0,0,0.2);border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border);}
+.science-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:900px;margin:32px auto 0;}
+.sci-card{background:var(--card-bg);border:0.5px solid var(--border);border-radius:14px;padding:20px;}
+.sci-stat{font-size:36px;font-weight:700;color:var(--gold);margin-bottom:6px;}
+.sci-desc{font-size:13px;color:var(--gray);line-height:1.6;margin-bottom:8px;}
+.sci-source{font-size:10px;color:rgba(200,168,75,0.5);font-style:italic;}
 
-.theory-section{background:#1B3A2D;}
-.theory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:32px;}
-.theory-card{background:rgba(255,255,255,0.06);border-radius:16px;padding:24px 20px;border-top:3px solid;}
-.theory-emoji{font-size:26px;margin-bottom:10px;}
-.theory-stat{font-size:38px;font-weight:700;margin-bottom:6px;}
-.theory-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:6px;line-height:1.4;}
-.theory-desc{font-size:12px;color:#8A9E8D;line-height:1.6;margin-bottom:8px;}
-.theory-author{font-size:10px;color:#4A7C59;font-style:italic;}
+/* PROFILE */
+.profile-section{padding:56px 24px;max-width:600px;margin:0 auto;text-align:center;}
+.profile-name{font-size:22px;font-weight:700;color:var(--white);margin-bottom:8px;}
+.profile-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:16px;}
+.profile-tag{font-size:12px;padding:4px 12px;border-radius:12px;background:rgba(200,168,75,0.1);color:var(--gold);border:0.5px solid rgba(200,168,75,0.2);}
+.profile-quote{font-size:15px;color:var(--gray);line-height:1.7;margin-bottom:28px;}
+.profile-quote strong{color:var(--white);}
 
-.profile-section{text-align:center;max-width:560px;margin:0 auto;}
-.profile-avatar{width:68px;height:68px;border-radius:50%;background:#E8F0E9;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:30px;}
-.profile-name{font-size:24px;font-weight:700;color:#1B3A2D;margin-bottom:16px;}
-.career-list{list-style:none;margin-bottom:20px;}
-.career-list li{font-size:13px;color:#4A7C59;line-height:1.9;display:flex;align-items:center;justify-content:center;gap:8px;}
-.career-list li::before{content:"";width:4px;height:4px;border-radius:50%;background:#C8A84B;flex-shrink:0;}
-.profile-quote{font-size:14px;color:#1B3A2D;line-height:1.8;}
+/* CTA BOTTOM */
+.cta-section{padding:56px 24px;text-align:center;}
+.cta-title{font-size:clamp(24px,5vw,32px);font-weight:700;margin-bottom:12px;}
+.cta-sub{font-size:14px;color:var(--gray);margin-bottom:28px;}
+.cta-btn{display:inline-block;padding:16px 40px;background:var(--gold);color:var(--dark);border-radius:30px;font-size:16px;font-weight:700;text-decoration:none;}
 
-footer{background:#1B3A2D;padding:32px 24px;text-align:center;border-top:0.5px solid rgba(255,255,255,0.08);}
-.footer-logo{font-size:15px;font-weight:700;color:#fff;margin-bottom:8px;}
-.footer-insta{font-size:12px;color:#4A7C59;}
-.footer-copy{font-size:10px;color:rgba(255,255,255,0.3);margin-top:14px;}
+/* FOOTER */
+footer{border-top:0.5px solid var(--border);padding:24px;text-align:center;}
+.footer-logo{font-size:15px;font-weight:700;color:var(--gold);margin-bottom:6px;}
+.footer-copy{font-size:11px;color:rgba(255,255,255,0.3);}
+
+/* DIVIDER */
+.divider{width:40px;height:2px;background:var(--gold);margin:0 auto 32px;}
 </style>
 </head>
 <body>
 
 <nav>
-  <div class="nav-logo">3000 그림단어책</div>
-  <a class="nav-btn" href="https://www.instagram.com/stayoungjung" target="_blank">인스타그램 →</a>
+  <div class="nav-logo">그루앙스 3000</div>
+  <a class="nav-cta" href="https://sehyeongjung-web.github.io/sehyeongtx/app.html">학습 시작하기 →</a>
 </nav>
 
-<div class="hero">
-  <div class="hero-tag">영어 단어 학습의 새로운 방법</div>
-  <h1>외우지 마세요.<br><span>이해하세요.</span></h1>
-  <p>핵심 뉘앙스 하나를 사진과 동영상으로 이해하면<br>수십 개의 단어가 저절로 보이기 시작합니다</p>
-  <a class="hero-cta" href="app.html">학습 시작하기 →</a>
-  <div class="scroll-hint">↓</div>
-</div>
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">PIC · ROOT · NUANCE</div>
+  <h1 class="hero-title">외우지 마세요.<br><span>이해하세요.</span></h1>
+  <p class="hero-sub">핵심 뉘앙스 하나를 그림과 동영상으로 이해하면<br>수십 개의 단어가 저절로 보이기 시작합니다</p>
+  <a class="hero-btn" href="https://sehyeongjung-web.github.io/sehyeongtx/app.html">지금 체험하기 →</a>
+</section>
 
-<section>
-  <div class="section-inner">
-    <div class="section-tag" style="color:#C8A84B;">직접 체험해 보세요</div>
-    <h2 class="section-h2">동영상을 보면<br>단어가 보이기 시작합니다</h2>
+<!-- DEMO CARDS -->
+<section class="demo-section">
+  <div class="sec-title">
+    <div class="sec-eyebrow">직접 체험해 보세요</div>
+    <h2 class="sec-head">동영상을 보면<br><em>단어가 보이기 시작합니다</em></h2>
+  </div>
+  <div class="divider"></div>
+  <div class="demo-grid">
 
-    <div class="tab-row">
-      <button class="tab active" onclick="showDemo('draw',this)">draw</button>
-      <button class="tab inactive" onclick="showDemo('port',this)">port</button>
-      <button class="tab inactive" onclick="showDemo('vis',this)">vis</button>
-    </div>
-
-    <div id="demo-draw">
-      <div class="demo-card" onclick="nextDemoStep('draw')">
-        <video muted loop autoplay playsinline src="https://sehyeongjung-web.github.io/sehyeongtx/draw.mp4"></video>
-        <div class="demo-overlay">
-          <div id="draw-0" class="demo-step on">
-            <div class="demo-q-mark">?</div>
-            <div class="demo-q-text">이 장면의 어근은 무엇일까요?</div>
-            <div class="demo-hint">탭해서 확인하기 →</div>
-          </div>
-          <div id="draw-1" class="demo-step">
-            <div class="demo-root">draw</div>
-            <div class="demo-gold"></div>
-            <div class="demo-nuance">끌어내다</div>
-            <div class="demo-hint">탭해서 단어들 보기 →</div>
-          </div>
-          <div id="draw-2" class="demo-step">
-            <div class="demo-words">
-              <div class="demo-word-box"><div class="demo-word-en">with<span>draw</span></div><div class="demo-word-ko">철수하다, 인출하다</div></div>
-              <div class="demo-word-box"><div class="demo-word-en"><span>draw</span>back</div><div class="demo-word-ko">단점, 걸림돌</div></div>
-              <div class="demo-word-box"><div class="demo-word-en"><span>draw</span>ing</div><div class="demo-word-ko">그림, 제도</div></div>
-              <div class="demo-word-box"><div class="demo-word-en">over<span>draw</span></div><div class="demo-word-ko">초과 인출하다</div></div>
-            </div>
-          </div>
+    <div class="demo-card">
+      <div class="demo-media">
+        <video muted loop playsinline preload="auto" src="https://sehyeongjung-web.github.io/sehyeongtx/draw.mp4" onloadeddata="this.play()"></video>
+      </div>
+      <div class="demo-body">
+        <div class="demo-root">draw</div>
+        <div class="demo-meaning">끌어내다 · 당기다</div>
+        <div class="demo-words">
+          <span class="demo-word">draw a gun</span>
+          <span class="demo-word">draw attention</span>
+          <span class="demo-word">withdraw</span>
+          <span class="demo-word">drawback</span>
         </div>
+        <div class="demo-hint">탭해서 더 보기 →</div>
       </div>
     </div>
 
-    <div id="demo-port" style="display:none;">
-      <div class="demo-card" onclick="nextDemoStep('port')">
-        <video muted loop autoplay playsinline src="https://sehyeongjung-web.github.io/sehyeongtx/port.mp4"></video>
-        <div class="demo-overlay">
-          <div id="port-0" class="demo-step on">
-            <div class="demo-q-mark">?</div>
-            <div class="demo-q-text">이 장면의 어근은 무엇일까요?</div>
-            <div class="demo-hint">탭해서 확인하기 →</div>
-          </div>
-          <div id="port-1" class="demo-step">
-            <div class="demo-root">port</div>
-            <div class="demo-gold"></div>
-            <div class="demo-nuance">나르다</div>
-            <div class="demo-hint">탭해서 단어들 보기 →</div>
-          </div>
-          <div id="port-2" class="demo-step">
-            <div class="demo-words">
-              <div class="demo-word-box"><div class="demo-word-en">im<span>port</span></div><div class="demo-word-ko">수입하다</div></div>
-              <div class="demo-word-box"><div class="demo-word-en">ex<span>port</span></div><div class="demo-word-ko">수출하다</div></div>
-              <div class="demo-word-box"><div class="demo-word-en">trans<span>port</span></div><div class="demo-word-ko">운송하다</div></div>
-              <div class="demo-word-box"><div class="demo-word-en">sup<span>port</span></div><div class="demo-word-ko">지지하다</div></div>
-            </div>
-          </div>
+    <div class="demo-card">
+      <div class="demo-media">
+        <video muted loop playsinline preload="auto" src="https://sehyeongjung-web.github.io/sehyeongtx/port.mp4" onloadeddata="this.play()"></video>
+      </div>
+      <div class="demo-body">
+        <div class="demo-root">port</div>
+        <div class="demo-meaning">나르다 · 운반하다</div>
+        <div class="demo-words">
+          <span class="demo-word">import</span>
+          <span class="demo-word">export</span>
+          <span class="demo-word">transport</span>
+          <span class="demo-word">support</span>
         </div>
+        <div class="demo-hint">탭해서 더 보기 →</div>
       </div>
     </div>
 
-    <div id="demo-vis" style="display:none;">
-      <div class="demo-card" onclick="nextDemoStep('vis')">
-        <video muted loop autoplay playsinline src="https://sehyeongjung-web.github.io/sehyeongtx/vis.mp4"></video>
-        <div class="demo-overlay">
-          <div id="vis-0" class="demo-step on">
-            <div class="demo-q-mark">?</div>
-            <div class="demo-q-text">이 장면의 어근은 무엇일까요?</div>
-            <div class="demo-hint">탭해서 확인하기 →</div>
-          </div>
-          <div id="vis-1" class="demo-step">
-            <div class="demo-root">vis</div>
-            <div class="demo-gold"></div>
-            <div class="demo-nuance">보다</div>
-            <div class="demo-hint">탭해서 단어들 보기 →</div>
-          </div>
-          <div id="vis-2" class="demo-step">
-            <div class="demo-words">
-              <div class="demo-word-box"><div class="demo-word-en"><span>vis</span>ion</div><div class="demo-word-ko">시각, 비전</div></div>
-              <div class="demo-word-box"><div class="demo-word-en"><span>vis</span>ible</div><div class="demo-word-ko">눈에 보이는</div></div>
-              <div class="demo-word-box"><div class="demo-word-en">super<span>vis</span>e</div><div class="demo-word-ko">감독하다</div></div>
-              <div class="demo-word-box"><div class="demo-word-en">tele<span>vis</span>ion</div><div class="demo-word-ko">텔레비전</div></div>
-            </div>
-          </div>
+    <div class="demo-card">
+      <div class="demo-media">
+        <video muted loop playsinline preload="auto" src="https://sehyeongjung-web.github.io/sehyeongtx/vis.mp4" onloadeddata="this.play()"></video>
+      </div>
+      <div class="demo-body">
+        <div class="demo-root">vis / vid</div>
+        <div class="demo-meaning">보다</div>
+        <div class="demo-words">
+          <span class="demo-word">vision</span>
+          <span class="demo-word">visible</span>
+          <span class="demo-word">supervise</span>
+          <span class="demo-word">television</span>
         </div>
+        <div class="demo-hint">탭해서 더 보기 →</div>
       </div>
     </div>
 
-    <p class="demo-caption">카드를 탭할 때마다 어근 → 뉘앙스 → 단어 순서로 펼쳐집니다</p>
   </div>
 </section>
 
-<section class="theory-section">
-  <div class="section-inner">
-    <div class="section-tag" style="color:#C8A84B;">뇌과학이 증명합니다</div>
-    <h2 class="section-h2" style="color:#fff;">왜 사진과 동영상으로 배워야 하는가</h2>
-    <div class="theory-grid">
-      <div class="theory-card" style="border-top-color:#C0392B;">
-        <div class="theory-emoji">🧠</div>
-        <div class="theory-stat" style="color:#C0392B;">6.5배</div>
-        <div class="theory-title">사진이 텍스트보다 오래 기억된다</div>
-        <div class="theory-desc">3일 후 기억 보존율: 텍스트 10% vs 사진 65%</div>
-        <div class="theory-author">— John Medina, Brain Rules (2008)</div>
-      </div>
-      <div class="theory-card" style="border-top-color:#C8A84B;">
-        <div class="theory-emoji">🔗</div>
-        <div class="theory-stat" style="color:#C8A84B;">2배</div>
-        <div class="theory-title">뇌의 기억 경로가 두 배로 활성화된다</div>
-        <div class="theory-desc">그림과 언어를 함께 학습하면 시각 + 언어 경로가 동시에 저장된다</div>
-        <div class="theory-author">— Allan Paivio, Dual Coding Theory (1971)</div>
-      </div>
-      <div class="theory-card" style="border-top-color:#CE93D8;">
-        <div class="theory-emoji">💡</div>
-        <div class="theory-stat" style="color:#CE93D8;">1개</div>
-        <div class="theory-title">핵심 뉘앙스 하나로 수십 개 뜻이 풀린다</div>
-        <div class="theory-desc">모든 단어의 뜻은 하나의 핵심 이미지(원형)에서 파생된다</div>
-        <div class="theory-author">— Eleanor Rosch, Prototype Theory (1970s)</div>
-      </div>
+<!-- SCIENCE -->
+<section class="science-section">
+  <div class="sec-title">
+    <div class="sec-eyebrow">뇌과학이 증명합니다</div>
+    <h2 class="sec-head">왜 그림과 동영상으로<br><em>배워야 하는가</em></h2>
+  </div>
+  <div class="divider"></div>
+  <div class="science-grid">
+    <div class="sci-card">
+      <div class="sci-stat">6.5배</div>
+      <div class="sci-desc">사진으로 배운 단어는 텍스트보다 6.5배 더 오래 기억에 남아요<br>3일 후 기억 보존율: 텍스트 10% vs 사진 65%</div>
+      <div class="sci-source">— John Medina, Brain Rules (2008)</div>
+    </div>
+    <div class="sci-card">
+      <div class="sci-stat">2배</div>
+      <div class="sci-desc">그림과 언어를 함께 보면 뇌의 기억 경로가 2개 동시에 활성화돼요</div>
+      <div class="sci-source">— Allan Paivio, Dual Coding Theory (1971)</div>
+    </div>
+    <div class="sci-card">
+      <div class="sci-stat">1개</div>
+      <div class="sci-desc">핵심 뉘앙스 하나만 이해하면 수십 개 단어가 저절로 풀려요</div>
+      <div class="sci-source">— Eleanor Rosch, Prototype Theory (1970s)</div>
     </div>
   </div>
 </section>
 
-<section>
-  <div class="profile-section">
-    <div class="profile-avatar">👨‍🏫</div>
-    <div class="section-tag" style="color:#4A7C59;">만든 사람</div>
-    <div class="profile-name">정세형</div>
-    <ul class="career-list">
-      <li>텍사스 주립대학교 대학원</li>
-      <li>파고다어학원 영어강사</li>
-      <li>한국능률협회 부문장</li>
-      <li>현대경제연구원 본부장</li>
-      <li>현직 고등학교 영어교사</li>
-    </ul>
-    <p class="profile-quote">
-      30년간 영어를 가르치면서 깨달은 것은 단 하나입니다.<br>
-      <strong>"단어는 외우는 게 아니라 이해하는 것"</strong>
-    </p>
+<!-- PROFILE -->
+<section class="profile-section">
+  <div class="sec-title">
+    <div class="sec-eyebrow">만든 사람</div>
+    <h2 class="sec-head"><em>정세형</em></h2>
   </div>
+  <div class="divider"></div>
+  <div class="profile-tags">
+    <span class="profile-tag">텍사스 주립대 대학원</span>
+    <span class="profile-tag">파고다어학원 강사</span>
+    <span class="profile-tag">한국능률협회 부문장</span>
+    <span class="profile-tag">현대경제연구원 본부장</span>
+    <span class="profile-tag">현직 고등학교 영어교사</span>
+  </div>
+  <p class="profile-quote">30년간 영어를 가르치면서 깨달은 것은 단 하나입니다.<br><strong>"단어는 외우는 게 아니라 이해하는 것"</strong></p>
 </section>
 
-<section style="padding:0 24px 64px;text-align:center;">
-  <a class="hero-cta" href="app.html">전체 어근 학습하러 가기 →</a>
+<!-- CTA BOTTOM -->
+<section class="cta-section">
+  <h2 class="cta-title">지금 바로 시작해 보세요</h2>
+  <p class="cta-sub">루트북 · 파워북 · 킬러북 — 총 3,000단어</p>
+  <a class="cta-btn" href="https://sehyeongjung-web.github.io/sehyeongtx/app.html">어근 학습 시작하기 →</a>
 </section>
 
 <footer>
-  <div class="footer-logo">3000 그림단어책</div>
-  <a class="footer-insta" href="https://www.instagram.com/stayoungjung" target="_blank">@stayoungjung</a>
+  <div class="footer-logo">그루앙스 3000</div>
   <div class="footer-copy">© 2026 정세형. All rights reserved.</div>
 </footer>
 
-<script>
-const demoStep = { draw:0, port:0, vis:0 };
-
-function showDemo(id, btn){
-  ['draw','port','vis'].forEach(c=>{
-    document.getElementById('demo-'+c).style.display = c===id ? 'block' : 'none';
-  });
-  document.querySelectorAll('.tab').forEach(t=>t.className='tab inactive');
-  btn.className = 'tab active';
-  demoStep[id]=0;
-  for(let i=0;i<=2;i++){
-    const el = document.getElementById(id+'-'+i);
-    if(el) el.className = 'demo-step'+(i===0?' on':'');
-  }
-}
-
-function nextDemoStep(id){
-  const next = demoStep[id] >= 2 ? 0 : demoStep[id]+1;
-  for(let i=0;i<=2;i++){
-    const el = document.getElementById(id+'-'+i);
-    if(el) el.className = 'demo-step'+(i===next?' on':'');
-  }
-  demoStep[id] = next;
-}
-</script>
 </body>
 </html>
