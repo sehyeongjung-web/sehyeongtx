@@ -674,7 +674,8 @@ function renderCard(){
   document.getElementById('cardNav').textContent=(cu+1)+' / '+CARDS.length;
   const wrongCards=CARDS.filter(x=>x.root!==card.root).sort(()=>Math.random()-0.5).slice(0,3);
   const cardOptsList=[...wrongCards.map(x=>x.root),card.root].sort(()=>Math.random()-0.5);
-  document.getElementById('cardOpts').innerHTML=cardOptsList.map(r=>`<div class="card-opt">${r}</div>`).join('');
+  const correctRoot=card.root;
+  document.getElementById('cardOpts').innerHTML=cardOptsList.map(r=>`<div class="card-opt" onclick="checkCardOpt(this,'${r.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${correctRoot.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">${r}</div>`).join('');
   document.getElementById('hintBtn').style.display='inline-flex';
   document.getElementById('hintText').style.display='none';
   document.getElementById('hintText').textContent='';
@@ -715,6 +716,31 @@ function renderCard(){
     nextStepBtn.style.cursor='pointer';
     nextStepBtn.style.background='#C8A84B';
     nextStepBtn.style.color='#1B3A2D';
+  }
+}
+
+function checkCardOpt(el, selected, correct){
+  // 중복 클릭 방지
+  const opts = document.querySelectorAll('.card-opt');
+  opts.forEach(o => o.style.pointerEvents = 'none');
+
+  if(selected === correct){
+    el.classList.add('correct');
+    el.innerHTML += ' ✓';
+    // 0.9초 후 자동으로 다음 단계로
+    setTimeout(()=>{ nextStep(); }, 900);
+  } else {
+    el.classList.add('wrong');
+    el.innerHTML += ' ✗';
+    // 정답 표시
+    opts.forEach(o => {
+      if(o.textContent.replace(' ✗','').replace(' ✓','').trim() === correct){
+        o.classList.add('correct');
+        o.innerHTML += ' ✓';
+      }
+    });
+    // 틀렸을 때는 자동 이동 없음 — 직접 다음 누르게
+    document.getElementById('nextStepBtn').style.display='inline-flex';
   }
 }
 
