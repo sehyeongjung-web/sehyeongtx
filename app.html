@@ -3,6 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+// 카카오톡 인앱 브라우저 감지 → 크롬으로 자동 전환
+(function(){
+  var ua = navigator.userAgent || '';
+  var isKakao = /KAKAOTALK/i.test(ua) || /kakao/i.test(ua);
+  if(!isKakao) return;
+
+  var url = location.href;
+
+  // Android: intent URL로 크롬 강제 실행
+  var isAndroid = /Android/i.test(ua);
+  if(isAndroid){
+    location.href = 'intent://' + url.replace(/https?:\/\//, '')
+      + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='
+      + encodeURIComponent(url) + ';end';
+    return;
+  }
+
+  // iOS 또는 기타: 안내 팝업 표시
+  window.addEventListener('DOMContentLoaded', function(){
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;';
+    overlay.innerHTML = '<div style="background:#1B3A2D;border-radius:16px;padding:28px 22px;max-width:320px;text-align:center;border:1px solid rgba(200,168,75,0.4);">'
+      + '<div style="font-size:40px;margin-bottom:12px;">🔊</div>'
+      + '<div style="font-size:17px;font-weight:700;color:#C8A84B;margin-bottom:10px;">크롬 브라우저로 열어주세요</div>'
+      + '<div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;margin-bottom:18px;">카카오톡에서는 발음 기능이 작동하지 않아요.<br>오른쪽 위 <b style="color:#fff">···</b> → <b style="color:#fff">다른 브라우저로 열기</b>를 눌러주세요.</div>'
+      + '<img src="https://sehyeongjung-web.github.io/sehyeongtx/kakao_guide.png" style="width:100%;border-radius:8px;margin-bottom:16px;" onerror="this.style.display=\'none\'">'
+      + '<button onclick="this.parentElement.parentElement.remove()" style="background:#C8A84B;color:#1B3A2D;border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">그냥 계속하기</button>'
+      + '</div>';
+    document.body.appendChild(overlay);
+  });
+})();
+</script>
 <title>그루앙스 3000 — 외우지 마세요. 이해하세요.</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -365,12 +398,13 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 <script>
 function speak(text){
   try{
-    if('speechSynthesis' in window){
-      window.speechSynthesis.cancel();
+    if(!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    setTimeout(()=>{
       const u=new SpeechSynthesisUtterance(text);
-      u.lang='en-US'; u.rate=0.9;
+      u.lang='en-US'; u.rate=0.85; u.volume=1;
       window.speechSynthesis.speak(u);
-    }
+    }, 150);
   }catch(e){}
 }
 
