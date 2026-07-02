@@ -659,6 +659,7 @@ const CARDS=[
 {unit:"UNIT 244",root:"education flow cluster",latin:"",meaning:"흐름",nuance:"배움이 아이들에게 계속 흘러가며 성장함",scene:"초등 교실에서 교사가 아이들의 질문을  받아 개념 지도로 연결하는 장면",photo:"https://sehyeongjung-web.github.io/sehyeongtx/unit244.jpg",video:"",words:[{en:"admissions",ko:"입학 허가",rp:""},{en:"enrollment",ko:"등록, 입학",rp:""},{en:"graduation",ko:"졸업",rp:""},{en:"commencement",ko:"졸업식, 시작",rp:""},{en:"transcript",ko:"성적 증명서",rp:""},{en:"diploma",ko:"졸업장",rp:""}]},
 {unit:"UNIT 245",root:"philosophy/existence/ethics cluster",latin:"",meaning:"윤리",nuance:"인간 존재와 가치의 의미를 성찰함",scene:"미술관 벤치에서 학생들이 한 작품 앞에  앉아 인간의 삶을 토론하는 장면",photo:"https://sehyeongjung-web.github.io/sehyeongtx/unit245.jpg",video:"",words:[{en:"philosophy",ko:"철학",rp:""},{en:"existence",ko:"존재",rp:""},{en:"existential",ko:"실존적인",rp:""},{en:"ethics",ko:"윤리학",rp:""},{en:"ontology",ko:"존재론",rp:""},{en:"epistemology",ko:"인식론",rp:""}]}
 ];
+const FREE_COUNT = 40;
 const LOCKED_ROOTS = [];
 
 let wrongRootQuiz=false;
@@ -722,8 +723,8 @@ function renderMedia(containerId,card){
 function renderList(){
   doneUnits=loadProgress();
 
-  // 접근 가능한 카드
-  const accessibleHtml = CARDS.map((card,i)=>`
+  // 접근 가능한 카드 (FREE_COUNT개만)
+  const accessibleHtml = CARDS.slice(0,FREE_COUNT).map((card,i)=>`
     <div class="list-card ${doneUnits.has(i)?'done':''}" onclick="goCard(${i})">
       ${card.video
         ?`<video class="list-media" muted loop playsinline preload="auto" src="${card.video}" onloadeddata="this.play()"></video>`
@@ -735,8 +736,8 @@ function renderList(){
       </div>
     </div>`).join('');
 
-  // 잠금 카드
-  const lockedHtml = LOCKED_ROOTS.map(r=>`
+  // 잠금 카드 (FREE_COUNT 이후)
+  const lockedHtml = CARDS.slice(FREE_COUNT).map(r=>`
     <div class="list-card locked">
       <div class="list-media-locked">🔒</div>
       <div class="list-overlay">
