@@ -731,9 +731,7 @@ function renderList(){
   // 접근 가능한 카드 (FREE_COUNT개만)
   const accessibleHtml = CARDS.slice(0,FREE_COUNT).map((card,i)=>`
     <div class="list-card ${doneUnits.has(i)?'done':''}" onclick="goCard(${i})">
-      ${card.video
-        ?`<video class="list-media" muted loop playsinline preload="auto" src="${card.video}" onloadeddata="this.play()"></video>`
-        :`<img class="list-media" src="${card.photo}" alt="${card.root}">`}
+      <img class="list-media" src="${card.photo}" alt="${card.root}" loading="lazy">
       <div class="list-overlay">
         <div class="list-unit">${card.unit}</div>
         <div class="list-root">${card.root}</div>
