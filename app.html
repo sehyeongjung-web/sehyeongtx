@@ -211,11 +211,12 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 .philo-skip{display:block;text-align:center;font-size:11px;color:rgba(255,255,255,0.35);margin-top:12px;background:none;border:none;cursor:pointer;width:100%;}
 
 /* ── 인증/로그인 ── */
-.nav-auth{display:flex;align-items:center;gap:8px;}
+.nav-auth{display:flex;align-items:center;gap:12px;}
 .nav-login-btn{background:rgba(255,255,255,0.12);border:0.5px solid rgba(255,255,255,0.25);color:#fff;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;}
 .nav-user-badge{display:flex;align-items:center;gap:6px;font-size:11.5px;color:rgba(255,255,255,0.8);}
 .nav-entitled-tag{background:#C8A84B;color:#1B3A2D;padding:2px 8px;border-radius:6px;font-weight:800;font-size:10.5px;}
-.nav-logout-btn{background:transparent;border:none;color:rgba(255,255,255,0.55);font-size:11px;text-decoration:underline;cursor:pointer;}
+.nav-trial-tag{background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);padding:2px 8px;border-radius:6px;font-weight:700;font-size:10.5px;}
+.nav-logout-btn{background:transparent;border:none;color:rgba(255,255,255,0.55);font-size:11px;text-decoration:underline;cursor:pointer;padding-left:6px;border-left:1px solid rgba(255,255,255,0.2);}
 
 .auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
 .auth-modal{background:#fff;border-radius:16px;max-width:380px;width:100%;padding:26px 24px;box-sizing:border-box;position:relative;}
@@ -1517,7 +1518,7 @@ function doSignOut(){
 function renderAuthNav(){
   const area = document.getElementById('authArea');
   if (currentUid){
-    area.innerHTML = `<span class="nav-user-badge">${window._lastEntitled ? '<span class="nav-entitled-tag">전체이용</span>' : '무료체험'}</span><button class="nav-logout-btn" onclick="GruanceAuth.doSignOut()">로그아웃</button>`;
+    area.innerHTML = `<span class="nav-user-badge">${window._lastEntitled ? '<span class="nav-entitled-tag">전체이용</span>' : '<span class="nav-trial-tag">무료체험</span>'}</span><button class="nav-logout-btn" onclick="GruanceAuth.doSignOut()">로그아웃</button>`;
   } else {
     area.innerHTML = `<button class="nav-login-btn" onclick="openAuthModal()">로그인</button>`;
   }
