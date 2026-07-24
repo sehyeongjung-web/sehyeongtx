@@ -1251,7 +1251,7 @@ checkPhiloModal();
       <div class="auth-sub">번호를 입력하면 인증번호를 문자로 보내드려요.</div>
       <div id="authMsgPhone"></div>
       <input type="tel" class="auth-input" id="authPhoneInput" placeholder="010-1234-5678">
-      <div id="recaptcha-container"></div>
+      <div id="recaptchaWrapper"><div id="recaptcha-container"></div></div>
       <button class="auth-btn" id="authSendBtn" onclick="GruanceAuth.sendCode()">인증번호 받기</button>
     </div>
 
@@ -1373,14 +1373,14 @@ async function sendCode(){
   const btn = document.getElementById('authSendBtn');
   btn.disabled = true; btn.textContent = '전송 중...';
   try{
-    // 매번 완전히 새로운 reCAPTCHA verifier를 만든다 (재사용 시 상태가 꼬이는 문제 예방)
-    if (window._recaptchaVerifier){
-      try{ window._recaptchaVerifier.clear(); }catch(e){}
-      window._recaptchaVerifier = null;
-    }
-    const container = document.getElementById('recaptcha-container');
-    if (container) container.innerHTML = '';
-    window._recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+    // reCAPTCHA를 "완전히 새로운 자리"에 매번 그리기 위해, 감싸는 wrapper의 내용을
+    // 통째로 지우고 매번 다른 id를 가진 새 div를 만들어 그 위에 렌더링한다.
+    // (같은 id의 element를 재사용하면 "이미 렌더링됨" 오류가 나는 문제 예방)
+    window._recaptchaVerifier = null;
+    const wrapper = document.getElementById('recaptchaWrapper');
+    const freshId = 'recaptcha-container-' + Date.now();
+    wrapper.innerHTML = `<div id="${freshId}"></div>`;
+    window._recaptchaVerifier = new RecaptchaVerifier(auth, freshId, { size: 'invisible' });
     const verifier = window._recaptchaVerifier;
     confirmationResult = await signInWithPhoneNumber(auth, e164, verifier);
     showStep('authStepCode');
