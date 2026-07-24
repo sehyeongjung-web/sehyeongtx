@@ -1518,7 +1518,7 @@ function doSignOut(){
 function renderAuthNav(){
   const area = document.getElementById('authArea');
   if (currentUid){
-    area.innerHTML = `<span class="nav-user-badge">${window._lastEntitled ? '<span class="nav-entitled-tag">전체이용</span>' : '<span class="nav-trial-tag">무료체험</span>'}</span><button class="nav-logout-btn" onclick="GruanceAuth.doSignOut()">로그아웃</button>`;
+    area.innerHTML = `<span class="nav-user-badge" onclick="GruanceAuth.reopenModal()" style="cursor:pointer;">${window._lastEntitled ? '<span class="nav-entitled-tag">전체이용</span>' : '<span class="nav-trial-tag">무료체험</span>'}</span><button class="nav-logout-btn" onclick="GruanceAuth.doSignOut()">로그아웃</button>`;
   } else {
     area.innerHTML = `<button class="nav-login-btn" onclick="openAuthModal()">로그인</button>`;
   }
@@ -1535,7 +1535,13 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-window.GruanceAuth = { sendCode, verifyCode, redeemCode, doSignOut };
+function reopenModal(){
+  document.getElementById('authOverlay').style.display = 'flex';
+  showStep('authStepDone');
+  refreshEntitlement(currentUid);
+}
+
+window.GruanceAuth = { sendCode, verifyCode, redeemCode, doSignOut, reopenModal };
 </script>
 
 </body>
