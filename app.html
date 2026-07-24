@@ -992,6 +992,7 @@ function ansRoot(chosen,el){
   fb.style.display='block';fb.className='q-fb '+(ok?'fb-ok':'fb-no');
   fb.textContent=ok?`✓ 정답! ${cq.root} = ${cq.meaning}`:`✗ 정답은 ${cq.root} (${cq.meaning})`;
   document.getElementById('q0next').style.display='block';
+  setTimeout(()=>{ if(document.getElementById('qp0').style.display!=='none') goPhase(1); },1300);
 }
 
 function renderWFQ(){
