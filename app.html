@@ -1469,10 +1469,20 @@ async function onLoginSuccess(uid, phoneNumber){
 function watchSession(uid){
   if (unsubSession) unsubSession();
   const userRef = doc(db, 'users', uid);
+  let isFirstSnapshot = true;
+  const mySessionAtStart = mySessionId;
   unsubSession = onSnapshot(userRef, (snap) => {
     if (!snap.exists()) return;
     const data = snap.data();
-    if (data.currentSession && data.currentSession !== mySessionId){
+    if (isFirstSnapshot){
+      // 감시를 막 시작한 시점의 첫 데이터는 "기준선"으로만 사용하고,
+      // 이 시점에 값이 다르다고 해서 바로 로그아웃시키지 않는다.
+      // (내 세션 쓰기가 아직 서버에 반영 안 됐을 수 있는 타이밍 때문)
+      isFirstSnapshot = false;
+      return;
+    }
+    // 세션 감시를 시작한 이후, 실제로 값이 "내가 알던 것"과 달라졌을 때만 반응.
+    if (data.currentSession && data.currentSession !== mySessionAtStart){
       alert('다른 기기에서 로그인되어 자동으로 로그아웃됩니다.');
       doSignOut();
     }
