@@ -739,6 +739,9 @@ function saveProgress(){
 
 let doneUnits=loadProgress();
 let hasSelectedUnit=false;
+let cu=0,cs=0;
+let cq=null,qi=0,sc=0,tot=0,wfi=0,wfa=false;
+let qList=[],wrongWords=[];
 
 function hl(w,r){
   if(!r) return w;
