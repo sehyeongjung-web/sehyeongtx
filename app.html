@@ -209,6 +209,33 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 .philo-source{font-size:10px;color:rgba(200,168,75,0.6);margin-top:3px;font-style:italic;}
 .philo-close-btn{width:100%;padding:13px;border-radius:12px;background:#C8A84B;color:#1B3A2D;font-size:14px;font-weight:700;border:none;cursor:pointer;margin-top:6px;}
 .philo-skip{display:block;text-align:center;font-size:11px;color:rgba(255,255,255,0.35);margin-top:12px;background:none;border:none;cursor:pointer;width:100%;}
+
+/* ── 인증/로그인 ── */
+.nav-auth{display:flex;align-items:center;gap:8px;}
+.nav-login-btn{background:rgba(255,255,255,0.12);border:0.5px solid rgba(255,255,255,0.25);color:#fff;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;}
+.nav-user-badge{display:flex;align-items:center;gap:6px;font-size:11.5px;color:rgba(255,255,255,0.8);}
+.nav-entitled-tag{background:#C8A84B;color:#1B3A2D;padding:2px 8px;border-radius:6px;font-weight:800;font-size:10.5px;}
+.nav-logout-btn{background:transparent;border:none;color:rgba(255,255,255,0.55);font-size:11px;text-decoration:underline;cursor:pointer;}
+
+.auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.auth-modal{background:#fff;border-radius:16px;max-width:380px;width:100%;padding:26px 24px;box-sizing:border-box;position:relative;}
+.auth-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:#999;cursor:pointer;}
+.auth-title{font-size:17px;font-weight:800;color:#1B3A2D;margin-bottom:6px;}
+.auth-sub{font-size:12px;color:#888;margin-bottom:18px;line-height:1.5;}
+.auth-step{display:none;}
+.auth-step.on{display:block;}
+.auth-input{width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:9px;padding:11px 13px;font-size:14px;margin-bottom:10px;}
+.auth-btn{width:100%;background:#1B3A2D;color:#fff;border:none;border-radius:9px;padding:12px 0;font-size:13.5px;font-weight:700;cursor:pointer;margin-top:4px;}
+.auth-btn:disabled{opacity:0.5;}
+.auth-btn.secondary{background:#F7F1E0;color:#8a5a1f;}
+.auth-msg{font-size:12px;padding:9px 12px;border-radius:8px;margin-bottom:10px;line-height:1.5;}
+.auth-msg.error{background:#FDEBEA;color:#B0473A;}
+.auth-msg.success{background:#EFF5EE;color:#1e5a20;}
+.auth-status-box{background:#F7F1E0;border-radius:10px;padding:14px;margin-bottom:14px;}
+.auth-status-title{font-size:13px;font-weight:800;color:#6b5320;margin-bottom:4px;}
+.auth-status-desc{font-size:11.5px;color:#8a6a30;line-height:1.5;}
+.auth-divider{text-align:center;font-size:11px;color:#bbb;margin:16px 0;}
+#recaptcha-container{margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -248,7 +275,9 @@ nav{background:rgba(27,58,45,0.96);backdrop-filter:blur(12px);padding:14px 20px;
 
 <nav>
   <div class="nav-logo">그루앙스 3000</div>
-
+  <div id="authArea" class="nav-auth">
+    <button class="nav-login-btn" onclick="openAuthModal()">로그인</button>
+  </div>
 </nav>
 
 <div class="tab-bar">
@@ -667,7 +696,9 @@ const CARDS=[
 ];
 const ADMIN_KEY = 'gruance3000';
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === ADMIN_KEY;
-const FREE_COUNT = isAdmin ? 999 : 40;
+let FREE_COUNT = isAdmin ? 999 : 40;
+function setFreeCount(n){ FREE_COUNT = n; if (typeof renderList === 'function') renderList(); }
+window.setFreeCount = setFreeCount;
 const LOCKED_ROOTS = [];
 
 let wrongRootQuiz=false;
@@ -1184,5 +1215,277 @@ function checkPhiloModal(){
 renderList();
 checkPhiloModal();
 </script>
+
+<!-- ── 인증 모달 ── -->
+<div class="auth-overlay" id="authOverlay" style="display:none;">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuthModal()">×</button>
+
+    <!-- 1단계: 전화번호 입력 -->
+    <div class="auth-step on" id="authStepPhone">
+      <div class="auth-title">휴대폰으로 로그인</div>
+      <div class="auth-sub">번호를 입력하면 인증번호를 문자로 보내드려요.</div>
+      <div id="authMsgPhone"></div>
+      <input type="tel" class="auth-input" id="authPhoneInput" placeholder="010-1234-5678">
+      <div id="recaptcha-container"></div>
+      <button class="auth-btn" id="authSendBtn" onclick="GruanceAuth.sendCode()">인증번호 받기</button>
+    </div>
+
+    <!-- 2단계: 인증번호 입력 -->
+    <div class="auth-step" id="authStepCode">
+      <div class="auth-title">인증번호 입력</div>
+      <div class="auth-sub">문자로 받은 6자리 숫자를 입력해주세요.</div>
+      <div id="authMsgCode"></div>
+      <input type="text" class="auth-input" id="authCodeInput" placeholder="123456" maxlength="6">
+      <button class="auth-btn" id="authVerifyBtn" onclick="GruanceAuth.verifyCode()">확인</button>
+    </div>
+
+    <!-- 3단계: 로그인 완료 후 상태 -->
+    <div class="auth-step" id="authStepDone">
+      <div class="auth-title">로그인 완료</div>
+      <div id="authStatusBox" class="auth-status-box">
+        <div class="auth-status-title" id="authStatusTitle">확인 중...</div>
+        <div class="auth-status-desc" id="authStatusDesc"></div>
+      </div>
+
+      <div id="authCodeRedeemSection">
+        <div class="auth-divider">책을 구매하셨다면</div>
+        <div id="authMsgRedeem"></div>
+        <input type="text" class="auth-input" id="authBookCodeInput" placeholder="책 뒷면의 코드를 입력하세요">
+        <button class="auth-btn secondary" onclick="GruanceAuth.redeemCode()">코드 등록하기</button>
+      </div>
+
+      <button class="auth-btn" style="margin-top:14px;background:#eee;color:#555;" onclick="closeAuthModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut as fbSignOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, runTransaction, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKFSHiCvYpAlylqw73SDznhRwUH128bd4",
+  authDomain: "gruance3000.firebaseapp.com",
+  projectId: "gruance3000",
+  storageBucket: "gruance3000.firebasestorage.app",
+  messagingSenderId: "427032975760",
+  appId: "1:427032975760:web:f2b07d003fb9837a14fb15",
+  measurementId: "G-5Q9HLVKEGV"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let confirmationResult = null;
+let currentUid = null;
+let mySessionId = null;
+let unsubSession = null;
+
+function genSessionId(){
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function showStep(stepId){
+  document.querySelectorAll('.auth-step').forEach(el => el.classList.remove('on'));
+  document.getElementById(stepId).classList.add('on');
+}
+
+function showMsg(elId, text, type){
+  const el = document.getElementById(elId);
+  el.innerHTML = `<div class="auth-msg ${type}">${text}</div>`;
+}
+function clearMsg(elId){ document.getElementById(elId).innerHTML = ''; }
+
+window.openAuthModal = function(){
+  document.getElementById('authOverlay').style.display = 'flex';
+  if (!window._recaptchaVerifier){
+    window._recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+  }
+};
+window.closeAuthModal = function(){
+  document.getElementById('authOverlay').style.display = 'none';
+};
+
+async function sendCode(){
+  clearMsg('authMsgPhone');
+  let phone = document.getElementById('authPhoneInput').value.trim().replace(/[^0-9]/g,'');
+  if (!phone.match(/^01[0-9]{8,9}$/)){
+    showMsg('authMsgPhone', '휴대폰 번호를 정확히 입력해주세요. (예: 01012345678)', 'error');
+    return;
+  }
+  const e164 = '+82' + phone.slice(1);
+  const btn = document.getElementById('authSendBtn');
+  btn.disabled = true; btn.textContent = '전송 중...';
+  try{
+    const verifier = window._recaptchaVerifier;
+    confirmationResult = await signInWithPhoneNumber(auth, e164, verifier);
+    showStep('authStepCode');
+  }catch(err){
+    console.error(err);
+    showMsg('authMsgPhone', '인증번호 전송에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+  }finally{
+    btn.disabled = false; btn.textContent = '인증번호 받기';
+  }
+}
+
+async function verifyCode(){
+  clearMsg('authMsgCode');
+  const code = document.getElementById('authCodeInput').value.trim();
+  if (!code){ showMsg('authMsgCode', '인증번호를 입력해주세요.', 'error'); return; }
+  const btn = document.getElementById('authVerifyBtn');
+  btn.disabled = true; btn.textContent = '확인 중...';
+  try{
+    const result = await confirmationResult.confirm(code);
+    currentUid = result.user.uid;
+    await onLoginSuccess(currentUid, result.user.phoneNumber);
+  }catch(err){
+    console.error(err);
+    showMsg('authMsgCode', '인증번호가 올바르지 않습니다. 다시 확인해주세요.', 'error');
+  }finally{
+    btn.disabled = false; btn.textContent = '확인';
+  }
+}
+
+async function onLoginSuccess(uid, phoneNumber){
+  const newSession = genSessionId();
+  mySessionId = newSession;
+  localStorage.setItem('gruance_session_id', newSession);
+
+  const userRef = doc(db, 'users', uid);
+  const snap = await getDoc(userRef);
+  if (!snap.exists()){
+    await setDoc(userRef, {
+      phoneNumber: phoneNumber || '',
+      createdAt: serverTimestamp(),
+      entitled: false,
+      entitlementSource: null,
+      subscriptionExpiry: null,
+      currentSession: newSession
+    });
+  } else {
+    await updateDoc(userRef, { currentSession: newSession });
+  }
+
+  watchSession(uid);
+  await refreshEntitlement(uid);
+  showStep('authStepDone');
+  renderAuthNav();
+}
+
+function watchSession(uid){
+  if (unsubSession) unsubSession();
+  const userRef = doc(db, 'users', uid);
+  unsubSession = onSnapshot(userRef, (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    if (data.currentSession && data.currentSession !== mySessionId){
+      alert('다른 기기에서 로그인되어 자동으로 로그아웃됩니다.');
+      doSignOut();
+    }
+  });
+}
+
+async function refreshEntitlement(uid){
+  const userRef = doc(db, 'users', uid);
+  const snap = await getDoc(userRef);
+  const data = snap.exists() ? snap.data() : {};
+  const entitled = !!data.entitled;
+
+  const titleEl = document.getElementById('authStatusTitle');
+  const descEl = document.getElementById('authStatusDesc');
+  const redeemSection = document.getElementById('authCodeRedeemSection');
+
+  if (entitled){
+    titleEl.textContent = '✓ 전체 유닛 이용 가능';
+    descEl.textContent = data.entitlementSource === 'bookcode'
+      ? '책 구매 인증이 완료되어 245개 유닛 전체를 이용하실 수 있습니다.'
+      : '이용권이 활성화되어 있습니다.';
+    redeemSection.style.display = 'none';
+    window._lastEntitled = true;
+    if (typeof window.setFreeCount === 'function') window.setFreeCount(999);
+  } else {
+    window._lastEntitled = false;
+    titleEl.textContent = '무료 체험 중 (UNIT 001~040)';
+    descEl.textContent = '책 구매 코드를 등록하시면 245개 유닛 전체가 열립니다.';
+    redeemSection.style.display = 'block';
+  }
+}
+
+async function redeemCode(){
+  clearMsg('authMsgRedeem');
+  const codeInput = document.getElementById('authBookCodeInput').value.trim().toUpperCase();
+  if (!codeInput){ showMsg('authMsgRedeem', '코드를 입력해주세요.', 'error'); return; }
+  if (!currentUid){ showMsg('authMsgRedeem', '먼저 로그인해주세요.', 'error'); return; }
+
+  try{
+    const codeRef = doc(db, 'bookCodes', codeInput);
+    await runTransaction(db, async (tx) => {
+      const codeSnap = await tx.get(codeRef);
+      if (!codeSnap.exists()){
+        throw new Error('INVALID');
+      }
+      const codeData = codeSnap.data();
+      if (codeData.used){
+        throw new Error('USED');
+      }
+      tx.update(codeRef, { used: true, usedBy: currentUid, usedAt: serverTimestamp() });
+      const userRef = doc(db, 'users', currentUid);
+      tx.update(userRef, { entitled: true, entitlementSource: 'bookcode' });
+    });
+    showMsg('authMsgRedeem', '코드 등록 완료! 전체 유닛이 열렸습니다.', 'success');
+    await refreshEntitlement(currentUid);
+  }catch(err){
+    if (err.message === 'USED'){
+      showMsg('authMsgRedeem', '이미 사용된 코드입니다.', 'error');
+    } else if (err.message === 'INVALID'){
+      showMsg('authMsgRedeem', '유효하지 않은 코드입니다. 다시 확인해주세요.', 'error');
+    } else {
+      console.error(err);
+      showMsg('authMsgRedeem', '오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    }
+  }
+}
+
+function doSignOut(){
+  if (unsubSession) unsubSession();
+  fbSignOut(auth);
+  currentUid = null;
+  localStorage.removeItem('gruance_session_id');
+  window._lastEntitled = false;
+  if (typeof window.setFreeCount === 'function') window.setFreeCount(40);
+  renderAuthNav();
+}
+
+function renderAuthNav(){
+  const area = document.getElementById('authArea');
+  if (currentUid){
+    area.innerHTML = `<span class="nav-user-badge">${window._lastEntitled ? '<span class="nav-entitled-tag">전체이용</span>' : '무료체험'}</span><button class="nav-logout-btn" onclick="GruanceAuth.doSignOut()">로그아웃</button>`;
+  } else {
+    area.innerHTML = `<button class="nav-login-btn" onclick="openAuthModal()">로그인</button>`;
+  }
+}
+
+// 새로고침 시 로그인 상태 복원
+auth.onAuthStateChanged(async (user) => {
+  if (user){
+    currentUid = user.uid;
+    mySessionId = localStorage.getItem('gruance_session_id') || genSessionId();
+    watchSession(user.uid);
+    await refreshEntitlement(user.uid);
+    renderAuthNav();
+  }
+});
+
+window.GruanceAuth = { sendCode, verifyCode, redeemCode, doSignOut };
+</script>
+
 </body>
 </html>
