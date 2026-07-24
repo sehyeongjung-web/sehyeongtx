@@ -738,6 +738,7 @@ function saveProgress(){
 }
 
 let doneUnits=loadProgress();
+let hasSelectedUnit=false;
 
 function hl(w,r){
   if(!r) return w;
@@ -816,7 +817,7 @@ function startLearning(){
 }
 
 function goCard(i){
-  cu=i;cs=0;
+  cu=i;cs=0;hasSelectedUnit=true;
   switchTab('card',document.querySelectorAll('.tab-btn')[1]);
   renderCard();
   showRevisitBanner(i);
@@ -1192,6 +1193,10 @@ function goNextRoot(){
 }
 
 function switchTab(id,btn){
+  if((id==='card'||id==='quiz') && !hasSelectedUnit){
+    showSelectUnitToast();
+    return;
+  }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('screen-'+id).classList.add('on');
@@ -1199,6 +1204,20 @@ function switchTab(id,btn){
   if(id==='list') renderList();
   if(id==='card'){cs=0;renderCard();}
   if(id==='quiz'){quizFromUnit=cu;buildQuizForUnit(cu);startQuiz();}
+}
+
+function showSelectUnitToast(){
+  let t=document.getElementById('selectUnitToast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='selectUnitToast';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1B3A2D;color:#fff;padding:13px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:9999;text-align:center;max-width:88%;';
+    document.body.appendChild(t);
+  }
+  t.textContent='👇 먼저 어근 목록에서 배우고 싶은 어근을 선택해주세요';
+  t.style.display='block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>{ t.style.display='none'; },2200);
 }
 
 function closePhiloModal(){
