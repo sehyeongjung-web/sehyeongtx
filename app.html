@@ -1377,8 +1377,15 @@ async function sendCode(){
     // 통째로 지우고 매번 다른 id를 가진 새 div를 만들어 그 위에 렌더링한다.
     // (같은 id의 element를 재사용하면 "이미 렌더링됨" 오류가 나는 문제 예방)
     window._recaptchaVerifier = null;
+    // 구글 reCAPTCHA 라이브러리가 element를 새로 만들어도 내부 전역 레지스트리에
+    // 예전 위젯 정보를 계속 들고 있는 알려진 문제가 있어, 이것도 강제로 초기화한다.
+    try{
+      if (window.___grecaptcha_cfg && window.___grecaptcha_cfg.clients){
+        window.___grecaptcha_cfg.clients = {};
+      }
+    }catch(e){}
     const wrapper = document.getElementById('recaptchaWrapper');
-    const freshId = 'recaptcha-container-' + Date.now();
+    const freshId = 'recaptcha-container-' + Date.now() + '-' + Math.floor(Math.random()*100000);
     wrapper.innerHTML = `<div id="${freshId}"></div>`;
     window._recaptchaVerifier = new RecaptchaVerifier(auth, freshId, { size: 'invisible' });
     const verifier = window._recaptchaVerifier;
