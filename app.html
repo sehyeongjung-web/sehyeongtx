@@ -1419,14 +1419,19 @@ async function verifyCode(){
     btn.disabled = false; btn.textContent = '확인';
     return;
   }
-  // 인증 자체는 성공. 이후 DB 저장 단계에서 오류가 나도 로그인은 유지하고 안내만 표시.
+  // 인증 자체는 성공. 이후 DB 저장 단계에서 오류가 나거나 응답이 없어도 화면이 멈추지 않도록 타임아웃을 둠.
   try{
-    await onLoginSuccess(confirmedUser.uid, confirmedUser.phoneNumber);
+    await Promise.race([
+      onLoginSuccess(confirmedUser.uid, confirmedUser.phoneNumber),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 10000))
+    ]);
   }catch(err){
     console.error('[verifyCode:onLoginSuccess]', err);
     showStep('authStepDone');
     document.getElementById('authStatusTitle').textContent = '로그인은 완료됐지만 문제가 있어요';
-    document.getElementById('authStatusDesc').textContent = `데이터 저장 중 오류: ${err.code || err.message}. 화면을 캡처해서 알려주세요.`;
+    document.getElementById('authStatusDesc').textContent = err.message === 'TIMEOUT'
+      ? '데이터 저장이 오래 걸리고 있어요. 인터넷 연결을 확인하고 다시 시도해주세요.'
+      : `데이터 저장 중 오류: ${err.code || err.message}. 화면을 캡처해서 알려주세요.`;
   }finally{
     btn.disabled = false; btn.textContent = '확인';
   }
