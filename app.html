@@ -1314,6 +1314,26 @@ window.closeAuthModal = function(){
   document.getElementById('authOverlay').style.display = 'none';
 };
 
+let cooldownTimer = null;
+
+function startCooldown(seconds){
+  const btn = document.getElementById('authSendBtn');
+  let remain = seconds;
+  btn.disabled = true;
+  if (cooldownTimer) clearInterval(cooldownTimer);
+  btn.textContent = `다시 시도까지 ${remain}초`;
+  cooldownTimer = setInterval(() => {
+    remain -= 1;
+    if (remain <= 0){
+      clearInterval(cooldownTimer);
+      btn.disabled = false;
+      btn.textContent = '인증번호 받기';
+    } else {
+      btn.textContent = `다시 시도까지 ${remain}초`;
+    }
+  }, 1000);
+}
+
 async function sendCode(){
   clearMsg('authMsgPhone');
   let phone = document.getElementById('authPhoneInput').value.trim().replace(/[^0-9]/g,'');
@@ -1328,11 +1348,23 @@ async function sendCode(){
     const verifier = window._recaptchaVerifier;
     confirmationResult = await signInWithPhoneNumber(auth, e164, verifier);
     showStep('authStepCode');
+    btn.disabled = false; btn.textContent = '인증번호 받기';
   }catch(err){
     console.error(err);
-    showMsg('authMsgPhone', '인증번호 전송에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
-  }finally{
-    btn.disabled = false; btn.textContent = '인증번호 받기';
+    let waitSec = 60;
+    let msg = '인증번호 전송에 실패했습니다.';
+    if (err.code === 'auth/too-many-requests'){
+      waitSec = 90;
+      msg = '너무 여러 번 시도하셨어요. 잠시 기다렸다가 다시 시도해주세요.';
+    } else if (err.code === 'auth/invalid-phone-number'){
+      waitSec = 5;
+      msg = '휴대폰 번호 형식을 다시 확인해주세요.';
+    } else if (String(err.message||'').toLowerCase().includes('recaptcha')){
+      waitSec = 30;
+      msg = '사람 확인(reCAPTCHA)에 실패했습니다. 아래 버튼이 다시 활성화되면 한 번 더 시도해주세요.';
+    }
+    showMsg('authMsgPhone', msg, 'error');
+    startCooldown(waitSec);
   }
 }
 
