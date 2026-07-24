@@ -1492,6 +1492,9 @@ async function redeemCode(){
       tx.update(userRef, { entitled: true, entitlementSource: 'bookcode' });
     });
     showMsg('authMsgRedeem', '코드 등록 완료! 전체 유닛이 열렸습니다.', 'success');
+    // 즉시 잠금 해제 (DB 재조회를 기다리지 않고 바로 반영)
+    window._lastEntitled = true;
+    if (typeof window.setFreeCount === 'function') window.setFreeCount(999);
     await refreshEntitlement(currentUid);
   }catch(err){
     if (err.message === 'USED'){
