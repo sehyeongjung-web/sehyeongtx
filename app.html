@@ -1547,6 +1547,7 @@ function doSignOut(){
   if (unsubSession) unsubSession();
   fbSignOut(auth);
   currentUid = null;
+  mySessionId = null;
   localStorage.removeItem('gruance_session_id');
   window._lastEntitled = false;
   if (window._recaptchaVerifier){
@@ -1570,10 +1571,16 @@ function renderAuthNav(){
 auth.onAuthStateChanged(async (user) => {
   if (user){
     currentUid = user.uid;
-    mySessionId = localStorage.getItem('gruance_session_id') || genSessionId();
-    watchSession(user.uid);
+    if (!mySessionId){
+      // 방금 로그인 흐름(verifyCode→onLoginSuccess)에서 이미 세션을 설정한 경우는 건너뜀.
+      // 여기 들어오는 건 "새로고침 등으로 이미 로그인된 상태를 복원"하는 경우뿐.
+      mySessionId = localStorage.getItem('gruance_session_id') || genSessionId();
+      watchSession(user.uid);
+    }
     await refreshEntitlement(user.uid);
     renderAuthNav();
+  } else {
+    currentUid = null;
   }
 });
 
