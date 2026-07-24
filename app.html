@@ -1475,16 +1475,15 @@ function watchSession(uid){
     if (!snap.exists()) return;
     const data = snap.data();
     if (isFirstSnapshot){
-      // 감시를 막 시작한 시점의 첫 데이터는 "기준선"으로만 사용하고,
-      // 이 시점에 값이 다르다고 해서 바로 로그아웃시키지 않는다.
-      // (내 세션 쓰기가 아직 서버에 반영 안 됐을 수 있는 타이밍 때문)
       isFirstSnapshot = false;
       return;
     }
-    // 세션 감시를 시작한 이후, 실제로 값이 "내가 알던 것"과 달라졌을 때만 반응.
+    // ⚠️ 기기 제한(다른 기기 로그인 시 자동 로그아웃) 기능은 안정화될 때까지 임시로 꺼둡니다.
+    // 아래 조건은 감지는 하되, 실제 로그아웃은 시키지 않고 콘솔에만 기록합니다.
     if (data.currentSession && data.currentSession !== mySessionAtStart){
-      alert('다른 기기에서 로그인되어 자동으로 로그아웃됩니다.');
-      doSignOut();
+      console.log('[세션 감지] 다른 세션 값이 감지됨(현재는 자동 로그아웃 비활성화 상태):', data.currentSession, 'vs', mySessionAtStart);
+      // alert('다른 기기에서 로그인되어 자동으로 로그아웃됩니다.');
+      // doSignOut();
     }
   });
 }
