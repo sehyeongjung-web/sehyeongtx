@@ -1337,9 +1337,6 @@ window.openAuthModal = function(){
     clearMsg('authMsgPhone');
     clearMsg('authMsgCode');
   }
-  if (!window._recaptchaVerifier){
-    window._recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-  }
 };
 window.closeAuthModal = function(){
   document.getElementById('authOverlay').style.display = 'none';
@@ -1376,6 +1373,14 @@ async function sendCode(){
   const btn = document.getElementById('authSendBtn');
   btn.disabled = true; btn.textContent = '전송 중...';
   try{
+    // 매번 완전히 새로운 reCAPTCHA verifier를 만든다 (재사용 시 상태가 꼬이는 문제 예방)
+    if (window._recaptchaVerifier){
+      try{ window._recaptchaVerifier.clear(); }catch(e){}
+      window._recaptchaVerifier = null;
+    }
+    const container = document.getElementById('recaptcha-container');
+    if (container) container.innerHTML = '';
+    window._recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
     const verifier = window._recaptchaVerifier;
     confirmationResult = await signInWithPhoneNumber(auth, e164, verifier);
     showStep('authStepCode');
@@ -1393,6 +1398,13 @@ async function sendCode(){
     } else if (String(err.message||'').toLowerCase().includes('recaptcha')){
       waitSec = 30;
       msg = '사람 확인(reCAPTCHA)에 실패했습니다. 아래 버튼이 다시 활성화되면 한 번 더 시도해주세요.';
+    } else {
+      msg = `오류: ${err.code || err.message}`;
+    }
+    // 실패 시에도 다음 시도를 위해 verifier를 정리해서 다음 클릭 때 새로 만들어지게 함
+    if (window._recaptchaVerifier){
+      try{ window._recaptchaVerifier.clear(); }catch(e){}
+      window._recaptchaVerifier = null;
     }
     showMsg('authMsgPhone', msg, 'error');
     startCooldown(waitSec);
