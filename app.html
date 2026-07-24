@@ -1327,6 +1327,13 @@ function clearMsg(elId){ document.getElementById(elId).innerHTML = ''; }
 
 window.openAuthModal = function(){
   document.getElementById('authOverlay').style.display = 'flex';
+  if (!currentUid){
+    showStep('authStepPhone');
+    document.getElementById('authPhoneInput').value = '';
+    document.getElementById('authCodeInput').value = '';
+    clearMsg('authMsgPhone');
+    clearMsg('authMsgCode');
+  }
   if (!window._recaptchaVerifier){
     window._recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
   }
@@ -1534,6 +1541,10 @@ function doSignOut(){
   currentUid = null;
   localStorage.removeItem('gruance_session_id');
   window._lastEntitled = false;
+  if (window._recaptchaVerifier){
+    try{ window._recaptchaVerifier.clear(); }catch(e){}
+    window._recaptchaVerifier = null;
+  }
   if (typeof window.setFreeCount === 'function') window.setFreeCount(40);
   renderAuthNav();
 }
