@@ -1533,9 +1533,19 @@ async function refreshEntitlement(uid){
   }
 }
 
+function normalizeBookCode(raw){
+  // 대쉬(-)나 공백 없이 입력해도 자동으로 표준 형식(XXX-XXXX-XXXX)으로 변환
+  const stripped = raw.replace(/[^A-Z0-9]/g, '');
+  if (stripped.length === 11){
+    return stripped.slice(0,3) + '-' + stripped.slice(3,7) + '-' + stripped.slice(7,11);
+  }
+  return raw;
+}
+
 async function redeemCode(){
   clearMsg('authMsgRedeem');
-  const codeInput = document.getElementById('authBookCodeInput').value.trim().toUpperCase();
+  const rawInput = document.getElementById('authBookCodeInput').value.trim().toUpperCase();
+  const codeInput = normalizeBookCode(rawInput);
   if (!codeInput){ showMsg('authMsgRedeem', '코드를 입력해주세요.', 'error'); return; }
   if (!currentUid){ showMsg('authMsgRedeem', '먼저 로그인해주세요.', 'error'); return; }
 
