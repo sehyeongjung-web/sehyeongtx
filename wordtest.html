@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>그루앙스 3000 단어 시험</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    background: #0d281c; color: #222; min-height: 100vh;
+  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #fafaf7; padding: 16px; }
+  h1 { font-size: 20px; margin: 8px 0 4px; color: #0d281c; }
+  h2 { font-size: 17px; margin: 16px 0 8px; color: #0d281c; }
+  p.muted, span.muted { color: #888; font-size: 13px; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .btn { display: inline-block; width: 100%; padding: 14px; border-radius: 10px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; text-align: center; }
+  .btn-primary { background: #0d281c; color: #e6c25a; }
+  .btn-secondary { background: #eee; color: #444; }
+  .btn:active { opacity: 0.8; }
+  input[type=text], input[type=password], select {
+    width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 10px;
+  }
+  label { display:block; font-size: 13px; color: #555; margin-bottom: 4px; font-weight: 600; }
+  .backlink { display:inline-block; margin-bottom: 10px; color: #0d281c; font-weight: 600; text-decoration: none; font-size: 14px; }
+  .choice-btn {
+    display:block; width:100%; text-align:left; padding: 14px; margin-bottom: 8px;
+    border: 2px solid #ddd; border-radius: 10px; background:#fff; font-size: 15px; cursor: pointer;
+  }
+  .choice-btn.correct { border-color: #2B7A2E; background: #e8f5e9; }
+  .choice-btn.wrong { border-color: #b3352c; background: #fde8e6; }
+  .choice-btn:disabled { opacity: 0.85; }
+  .timerbar-wrap { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+  .timerbar { height: 100%; background: #e6c25a; transition: width 0.1s linear; }
+  .qprogress { font-size: 13px; color: #888; margin-bottom: 8px; }
+  .qword { font-size: 28px; font-weight: 800; color: #0d281c; margin: 12px 0 18px; text-align:center; }
+  .tabs { display:flex; border-bottom: 2px solid #eee; margin-bottom: 12px; }
+  .tab { flex:1; text-align:center; padding: 10px; font-weight:600; color:#888; cursor:pointer; border-bottom: 3px solid transparent; }
+  .tab.active { color: #0d281c; border-bottom-color: #e6c25a; }
+  .statrow { display:flex; justify-content: space-between; align-items:center; margin-bottom: 4px; }
+  .badge-ok { background:#e8f5e9; color:#2B7A2E; padding: 2px 8px; border-radius: 6px; font-size:12px; font-weight:600; }
+  .badge-warn { background:#fde8e6; color:#b3352c; padding: 2px 8px; border-radius: 6px; font-size:12px; font-weight:600; }
+  .barwrap { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:12px; }
+  .barwrap .lbl { width: 50px; color:#666; }
+  .barwrap .track { flex:1; background:#eee; border-radius:4px; height:14px; overflow:hidden; }
+  .barwrap .track > div { height:100%; }
+  .barwrap .val { width: 40px; text-align:right; color:#666; }
+  .empty { text-align:center; color:#999; padding: 30px 0; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#0d281c; color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:999; }
+  .homebtn { display:block; background:#fff; border:2px solid #0d281c; border-radius:12px; padding:18px; margin-bottom:12px; text-align:center; font-weight:700; color:#0d281c; cursor:pointer; }
+  .homebtn.gold { background:#0d281c; color:#e6c25a; border-color:#0d281c; }
+  .final-score { text-align:center; padding: 20px 0; }
+  .final-score .num { font-size: 48px; font-weight:900; color:#0d281c; }
+  .row3 { display:flex; gap:8px; }
+  .row3 > * { flex:1; }
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">불러오는 중...</div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit as fslimit
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKFSHiCvYpAlylqw73SDznhRwUH128bd4",
+  authDomain: "gruance3000.firebaseapp.com",
+  projectId: "gruance3000",
+  storageBucket: "gruance3000.firebasestorage.app",
+  messagingSenderId: "427032975760",
+  appId: "1:427032975760:web:f2b07d003fb9837a14fb15",
+  measurementId: "G-5Q9HLVKEGV"
+};
+const fbapp = initializeApp(firebaseConfig);
+const db = getFirestore(fbapp);
+
+const COL_SETTINGS = 'wordtest_settings';
+const COL_ATTEMPTS = 'wordtest_attempts';
+const COL_REVIEWPOOL = 'wordtest_reviewpool';
+const SETTINGS_DOC = 'main';
+const MASTERY_STREAK = 2; // consecutive correct reviews needed to graduate a word out of the pool
+
+// ============== WORD DATA (UNIT 1-82, Rootbook) ==============
+const UNITS = [{"n": 1, "root": "struct", "root_meaning": "struct=쌓다/세우다", "words": [{"en": "structure", "ko": "구조, 건축물"}, {"en": "construct", "ko": "건설하다, 구성하다"}, {"en": "construction", "ko": "건설, 시공"}, {"en": "constructive", "ko": "건설적인"}, {"en": "reconstruct", "ko": "재구성하다"}, {"en": "structural", "ko": "구조의"}, {"en": "obstruct", "ko": "막다, 방해하다"}, {"en": "obstruction", "ko": "장애, 방해"}, {"en": "instruct", "ko": "가르치다, 지시하다"}, {"en": "instruction", "ko": "지시, 설명"}, {"en": "instructor", "ko": "강사"}, {"en": "restructure", "ko": "재구조화하다"}, {"en": "destruction", "ko": "파괴"}, {"en": "substructure", "ko": "하부 구조"}]}, {"n": 2, "root": "tain/ten/tent", "root_meaning": "tain/ten/tent=잡다/유지하다", "words": [{"en": "maintain", "ko": "유지하다, 주장하다"}, {"en": "maintenance", "ko": "유지 관리, 정비"}, {"en": "extend", "ko": "연장하다, 확장하다"}, {"en": "tenant", "ko": "세입자, 임차인"}, {"en": "intent", "ko": "강한 의도의"}, {"en": "retain", "ko": "보유하다"}, {"en": "retention", "ko": "보유, 유지"}, {"en": "contain", "ko": "포함하다, 억제하다"}, {"en": "container", "ko": "용기"}, {"en": "sustain", "ko": "지속시키다"}, {"en": "detain", "ko": "붙잡아 두다"}, {"en": "detention", "ko": "구금, 방과 후 벌"}, {"en": "attain", "ko": "도달하다"}, {"en": "abstain", "ko": "삼가다"}, {"en": "tenacious", "ko": "끈질긴"}, {"en": "content", "ko": "내용"}, {"en": "tenacity", "ko": "끈기"}]}, {"n": 3, "root": "press", "root_meaning": "press=누르다/압박하다", "words": [{"en": "impress", "ko": "감동시키다, 강조하다"}, {"en": "impression", "ko": "인상, 인쇄"}, {"en": "impressive", "ko": "인상적인"}, {"en": "express", "ko": "표현하다"}, {"en": "expression", "ko": "표현"}, {"en": "pressure", "ko": "압력, 압박"}, {"en": "compress", "ko": "압축하다"}, {"en": "compression", "ko": "압축"}, {"en": "suppress", "ko": "억압하다, 억누르다"}, {"en": "depress", "ko": "우울하게 하다"}, {"en": "depression", "ko": "우울증, 불황"}, {"en": "oppress", "ko": "억압하다"}, {"en": "repress", "ko": "억제하다"}, {"en": "impressionism", "ko": "인상주의"}]}, {"n": 4, "root": "clar", "root_meaning": "clar=분명하다/밝다", "words": [{"en": "declare", "ko": "밝히다, 단언하다"}, {"en": "declaration", "ko": "선언, 공표"}, {"en": "clarify", "ko": "명확히 하다"}, {"en": "clarification", "ko": "명확화, 해명"}, {"en": "clarity", "ko": "명확성, 선명도"}, {"en": "clear", "ko": "명확한, 맑은"}, {"en": "clearly", "ko": "명확히"}, {"en": "clarinet", "ko": "클라리넷"}, {"en": "clairvoyant", "ko": "천리안의, 예언자"}, {"en": "declarative", "ko": "선언적인"}, {"en": "clarion", "ko": "분명한 외침"}, {"en": "elucidate", "ko": "명료하게 설명하다"}, {"en": "lucid", "ko": "명료한"}, {"en": "clearance", "ko": "정리, 허가"}]}, {"n": 5, "root": "vid/vis", "root_meaning": "vid/vis=보다", "words": [{"en": "visual", "ko": "시각적인"}, {"en": "vision", "ko": "시각, 비전"}, {"en": "visible", "ko": "눈에 보이는"}, {"en": "visibility", "ko": "가시성"}, {"en": "visualize", "ko": "시각화하다"}, {"en": "provide", "ko": "제공하다"}, {"en": "evidence", "ko": "증거"}, {"en": "evident", "ko": "명백한"}, {"en": "envision", "ko": "마음속에 그리다"}, {"en": "overview", "ko": "개관"}, {"en": "viewer", "ko": "시청자"}, {"en": "viewpoint", "ko": "관점"}, {"en": "provision", "ko": "제공, 조항"}, {"en": "videography", "ko": "영상 제작"}]}, {"n": 6, "root": "aud", "root_meaning": "aud=듣다", "words": [{"en": "audience", "ko": "청중, 관객"}, {"en": "audio", "ko": "음향, 오디오"}, {"en": "auditorium", "ko": "강당"}, {"en": "audible", "ko": "들을 수 있는"}, {"en": "audibility", "ko": "청취 가능성"}, {"en": "inaudible", "ko": "들을 수 없는"}, {"en": "audit", "ko": "감사하다, 회계 감사"}, {"en": "auditor", "ko": "감사관, 청강생"}, {"en": "auditory", "ko": "청각의"}, {"en": "audiovisual", "ko": "시청각의"}, {"en": "audiobook", "ko": "오디오북"}, {"en": "audition", "ko": "오디션"}, {"en": "obedient", "ko": "순종적인"}, {"en": "auditing", "ko": "감사"}]}, {"n": 7, "root": "spec/spect/spic", "root_meaning": "spec/spect/spic=보다/관찰하다", "words": [{"en": "inspect", "ko": "검사하다, 살피다"}, {"en": "inspection", "ko": "검사"}, {"en": "perspective", "ko": "관점, 시각"}, {"en": "spectator", "ko": "관중, 관객"}, {"en": "spectacular", "ko": "눈부신, 장관의"}, {"en": "spectrum", "ko": "범위, 스펙트럼"}, {"en": "speculate", "ko": "짐작하다, 추측하다"}, {"en": "aspect", "ko": "양상, 측면"}, {"en": "respect", "ko": "존중하다, 존경"}, {"en": "suspect", "ko": "의심하다"}, {"en": "microscope", "ko": "현미경"}, {"en": "prospect", "ko": "전망, 가능성"}, {"en": "circumspect", "ko": "신중한"}, {"en": "spectacle", "ko": "장관, 구경거리"}]}, {"n": 8, "root": "pend/pens", "root_meaning": "pend/pens=매달다/무게를 달다", "words": [{"en": "depend", "ko": "의존하다, ~에 달려 있다"}, {"en": "independent", "ko": "독립적인"}, {"en": "independence", "ko": "독립"}, {"en": "pendulum", "ko": "진자, 흔들리는 추"}, {"en": "suspend", "ko": "매달다, 정지시키다"}, {"en": "suspension", "ko": "일시 정지, 현수교"}, {"en": "suspense", "ko": "긴장감, 불안"}, {"en": "pending", "ko": "보류 중인"}, {"en": "compensate", "ko": "보상하다"}, {"en": "append", "ko": "덧붙이다"}, {"en": "appendix", "ko": "부록, 맹장"}, {"en": "pendant", "ko": "펜던트"}, {"en": "dependable", "ko": "믿을 수 있는"}, {"en": "spender", "ko": "소비자"}]}, {"n": 9, "root": "dict", "root_meaning": "dict=말하다/선언하다", "words": [{"en": "predict", "ko": "예측하다"}, {"en": "prediction", "ko": "예측"}, {"en": "contradict", "ko": "반박하다"}, {"en": "contradiction", "ko": "모순"}, {"en": "dictate", "ko": "받아쓰게 하다, 지시하다"}, {"en": "dictator", "ko": "독재자"}, {"en": "dictionary", "ko": "사전"}, {"en": "indicate", "ko": "나타내다"}, {"en": "diction", "ko": "말투, 발음법"}, {"en": "dictation", "ko": "받아쓰기"}, {"en": "dictatorial", "ko": "독재적인"}, {"en": "juridical", "ko": "사법의"}, {"en": "maledict", "ko": "저주하다"}, {"en": "dictatorship", "ko": "독재 정치"}]}, {"n": 10, "root": "duc/duct", "root_meaning": "duc/duct=이끌다/끌어내다", "words": [{"en": "produce", "ko": "생산하다"}, {"en": "product", "ko": "제품"}, {"en": "production", "ko": "생산"}, {"en": "conduct", "ko": "실시하다, 지휘하다"}, {"en": "educate", "ko": "교육하다"}, {"en": "introduce", "ko": "소개하다"}, {"en": "reduce", "ko": "줄이다"}, {"en": "deduce", "ko": "추론하다"}, {"en": "induce", "ko": "유도하다"}, {"en": "induction", "ko": "유도, 귀납"}, {"en": "reduction", "ko": "감소"}, {"en": "producer", "ko": "생산자, 제작자"}, {"en": "conductive", "ko": "전도성의"}, {"en": "deductive", "ko": "연역적인"}]}, {"n": 11, "root": "pon/pos/pose", "root_meaning": "pon/pos/pose=놓다/두다/배치하다", "words": [{"en": "pose", "ko": "제기하다, 야기하다"}, {"en": "impose", "ko": "부과하다, 강요하다"}, {"en": "expose", "ko": "노출시키다, 드러내다"}, {"en": "propose", "ko": "제안하다"}, {"en": "oppose", "ko": "반대하다"}, {"en": "compose", "ko": "구성하다, 작곡하다"}, {"en": "component", "ko": "구성 요소"}, {"en": "opponent", "ko": "상대"}, {"en": "posture", "ko": "자세"}, {"en": "preposition", "ko": "전치사"}, {"en": "exponent", "ko": "지수, 옹호자"}, {"en": "proponent", "ko": "지지자"}, {"en": "suppose", "ko": "가정하다"}, {"en": "postponement", "ko": "연기"}]}, {"n": 12, "root": "port", "root_meaning": "port=나르다/운반하다", "words": [{"en": "import", "ko": "수입하다, 수입"}, {"en": "export", "ko": "수출하다, 수출"}, {"en": "transport", "ko": "운송하다, 운송"}, {"en": "report", "ko": "보고하다, 보고서"}, {"en": "support", "ko": "지지하다, 지원하다"}, {"en": "portable", "ko": "휴대용의"}, {"en": "airport", "ko": "공항"}, {"en": "passport", "ko": "여권"}, {"en": "portfolio", "ko": "포트폴리오"}, {"en": "deport", "ko": "추방하다"}, {"en": "deportation", "ko": "추방"}, {"en": "reporter", "ko": "기자"}, {"en": "supportive", "ko": "지지하는"}, {"en": "porter", "ko": "짐꾼"}]}, {"n": 13, "root": "fer", "root_meaning": "fer=나르다/가져오다/전달하다", "words": [{"en": "transfer", "ko": "이전하다, 전달하다"}, {"en": "transference", "ko": "이전, 전이"}, {"en": "transferable", "ko": "이전 가능한"}, {"en": "prefer", "ko": "선호하다"}, {"en": "preference", "ko": "선호, 선호도"}, {"en": "refer", "ko": "언급하다, 참조하다"}, {"en": "reference", "ko": "참고, 언급"}, {"en": "infer", "ko": "추론하다"}, {"en": "inference", "ko": "추론, 추측"}, {"en": "confer", "ko": "수여하다, 상의하다"}, {"en": "conference", "ko": "회의, 학회"}, {"en": "differ", "ko": "다르다, 차이가 있다"}, {"en": "difference", "ko": "차이, 다름"}, {"en": "offer", "ko": "제공하다"}]}, {"n": 14, "root": "scrib/script", "root_meaning": "scrib/script=쓰다/기록하다", "words": [{"en": "scribe", "ko": "필경사, 서기"}, {"en": "describe", "ko": "묘사하다, 설명하다"}, {"en": "description", "ko": "묘사, 설명"}, {"en": "subscribe", "ko": "구독하다"}, {"en": "subscription", "ko": "구독, 구독료"}, {"en": "prescribe", "ko": "처방하다"}, {"en": "prescription", "ko": "처방전"}, {"en": "script", "ko": "대본, 원고"}, {"en": "inscription", "ko": "비문, 새긴 글"}, {"en": "inscribe", "ko": "새기다"}, {"en": "ascribe", "ko": "탓으로 돌리다"}, {"en": "scripture", "ko": "성서, 경전"}, {"en": "typescript", "ko": "타자 원고"}, {"en": "scribble", "ko": "갈겨쓰다"}]}, {"n": 15, "root": "gram/graph", "root_meaning": "gram/graph=쓰다/그리다/기록하다", "words": [{"en": "diagram", "ko": "도표, 다이어그램"}, {"en": "grammar", "ko": "문법"}, {"en": "grammatical", "ko": "문법적인"}, {"en": "paragraph", "ko": "단락, 문단"}, {"en": "photograph", "ko": "사진"}, {"en": "photographer", "ko": "사진작가"}, {"en": "photography", "ko": "사진술"}, {"en": "program", "ko": "프로그램, 프로그래밍하다"}, {"en": "histogram", "ko": "히스토그램"}, {"en": "anagram", "ko": "철자 바꾸기"}, {"en": "epigram", "ko": "짧은 풍자시"}, {"en": "grammarian", "ko": "문법학자"}, {"en": "monogram", "ko": "문자 조합 무늬"}, {"en": "graphite", "ko": "흑연"}]}, {"n": 16, "root": "sign", "root_meaning": "sign=표시하다/신호/표지", "words": [{"en": "signal", "ko": "신호, 신호를 보내다"}, {"en": "significant", "ko": "중요한, 의미 있는"}, {"en": "significance", "ko": "중요성, 의미"}, {"en": "insignificant", "ko": "사소한, 하찮은"}, {"en": "signature", "ko": "서명"}, {"en": "sign", "ko": "표지, 서명하다"}, {"en": "designate", "ko": "지명하다, 지정하다"}, {"en": "designation", "ko": "지정, 임명"}, {"en": "assign", "ko": "배정하다, 할당하다"}, {"en": "assignment", "ko": "과제, 임무"}, {"en": "consign", "ko": "위탁하다, 맡기다"}, {"en": "resign", "ko": "사임하다"}, {"en": "signatory", "ko": "서명자"}]}, {"n": 17, "root": "vert/vers", "root_meaning": "vert/vers=돌리다/방향을 바꾸다/전환하다", "words": [{"en": "convert", "ko": "변환하다, 바꾸다"}, {"en": "conversion", "ko": "전환, 변환"}, {"en": "divert", "ko": "방향을 바꾸다, 우회시키다"}, {"en": "diversion", "ko": "전환, 우회"}, {"en": "revert", "ko": "되돌아가다"}, {"en": "reversion", "ko": "복귀, 역전"}, {"en": "invert", "ko": "뒤집다, 역전시키다"}, {"en": "reverse", "ko": "역전시키다, 반대의"}, {"en": "diverse", "ko": "다양한"}, {"en": "diversity", "ko": "다양성"}, {"en": "conversation", "ko": "대화"}, {"en": "anniversary", "ko": "기념일"}, {"en": "vertical", "ko": "수직의"}]}, {"n": 18, "root": "act", "root_meaning": "act=행동하다/움직이다/실행하다", "words": [{"en": "act", "ko": "행동하다, 행동"}, {"en": "action", "ko": "행동, 조치"}, {"en": "active", "ko": "활동적인"}, {"en": "actively", "ko": "적극적으로"}, {"en": "activity", "ko": "활동"}, {"en": "actor", "ko": "배우"}, {"en": "actress", "ko": "여배우"}, {"en": "actually", "ko": "실제로"}, {"en": "reaction", "ko": "반응"}, {"en": "interaction", "ko": "상호 작용"}, {"en": "enact", "ko": "제정하다, 연기하다"}, {"en": "activation", "ko": "활성화"}, {"en": "reactionary", "ko": "반동적인"}]}, {"n": 19, "root": "fix", "root_meaning": "fix=고정하다/박다/붙이다", "words": [{"en": "fix", "ko": "고정하다, 수리하다"}, {"en": "fixed", "ko": "고정된, 정해진"}, {"en": "fixation", "ko": "집착, 고정"}, {"en": "fixture", "ko": "고정 장치, 정착물"}, {"en": "prefix", "ko": "접두사"}, {"en": "suffix", "ko": "접미사"}, {"en": "affix", "ko": "붙이다, 첨부물"}, {"en": "crucify", "ko": "십자가에 못 박다"}, {"en": "crucifixion", "ko": "십자가 처형"}, {"en": "transfixed", "ko": "꼼짝 못하는, 넋을 잃은"}, {"en": "transfix", "ko": "못 박듯 움직이지 못하게 하다"}, {"en": "fixate", "ko": "집착하다"}, {"en": "fixer", "ko": "해결사"}]}, {"n": 20, "root": "cap/capt/cept/ceive", "root_meaning": "cap/capt/cept/ceive=잡다/붙잡다/받아들이다", "words": [{"en": "capture", "ko": "포착하다, 잡다"}, {"en": "captive", "ko": "사로잡힌, 포로"}, {"en": "captivate", "ko": "매혹하다, 사로잡다"}, {"en": "capacity", "ko": "능력, 수용력"}, {"en": "capable", "ko": "능력 있는"}, {"en": "capability", "ko": "능력, 역량"}, {"en": "caption", "ko": "자막, 설명"}, {"en": "acceptable", "ko": "받아들일 수 있는"}, {"en": "deceptive", "ko": "속이는"}, {"en": "perceptive", "ko": "지각력 있는"}, {"en": "reception", "ko": "수신, 환영"}, {"en": "basic concept", "ko": "기본 개념"}, {"en": "capitulum", "ko": "두상화"}]}, {"n": 21, "root": "cap/capit", "root_meaning": "cap/capit=머리/꼭대기/우두머리", "words": [{"en": "capital", "ko": "수도, 자본, 주요한"}, {"en": "captain", "ko": "선장, 대장, 주장"}, {"en": "chapter", "ko": "장, 챕터"}, {"en": "decapitate", "ko": "목을 베다, 참수하다"}, {"en": "recapitulate", "ko": "요약하다, 되풀이하다"}, {"en": "recapitulation", "ko": "요약, 반복"}, {"en": "cape", "ko": "곶, 케이프"}, {"en": "cadet", "ko": "사관생도, 연하자"}, {"en": "capitalize", "ko": "대문자로 쓰다, 자본화하다"}, {"en": "capitalism", "ko": "자본주의"}, {"en": "capitol", "ko": "국회의사당"}, {"en": "per capita", "ko": "1인당"}, {"en": "capital-intensive", "ko": "자본 집약적인"}]}, {"n": 22, "root": "cur/curr/curs", "root_meaning": "cur/curr/curs=달리다/흐르다", "words": [{"en": "cur", "ko": "달리다, 흐르다"}, {"en": "cursor", "ko": "커서"}, {"en": "current", "ko": "현재의, 흐름"}, {"en": "currency", "ko": "통화, 유통"}, {"en": "concur", "ko": "동의하다"}, {"en": "occur", "ko": "발생하다"}, {"en": "occurrence", "ko": "사건, 발생"}, {"en": "recur", "ko": "되풀이되다"}, {"en": "excursion", "ko": "짧은 여행"}, {"en": "incur", "ko": "초래하다"}, {"en": "recurrence", "ko": "재발"}, {"en": "concurrent", "ko": "동시에 일어나는"}, {"en": "recurrent", "ko": "반복되는"}]}, {"n": 23, "root": "cede/ceed/cess", "root_meaning": "cede/ceed/cess=가다/나아가다/양보하다", "words": [{"en": "cede", "ko": "양도하다"}, {"en": "concede", "ko": "인정하다, 양보하다"}, {"en": "precede", "ko": "앞서다"}, {"en": "recede", "ko": "물러나다"}, {"en": "access", "ko": "접근, 이용"}, {"en": "excess", "ko": "초과"}, {"en": "proceed", "ko": "진행하다"}, {"en": "precedent", "ko": "전례"}, {"en": "concession", "ko": "양보"}, {"en": "accede", "ko": "동의하다, 취임하다"}, {"en": "accession", "ko": "취임, 가입"}, {"en": "successor", "ko": "후임자"}, {"en": "precedence", "ko": "우선권"}]}, {"n": 24, "root": "claim/clam", "root_meaning": "claim/clam=외치다/주장하다", "words": [{"en": "claim", "ko": "요구하다, 주장하다"}, {"en": "exclaim", "ko": "외치다"}, {"en": "proclaim", "ko": "선포하다"}, {"en": "reclaim", "ko": "되찾다"}, {"en": "disclaimer", "ko": "면책 조항"}, {"en": "acclaim", "ko": "환호하다, 칭찬하다"}, {"en": "declaim", "ko": "열변을 토하다"}, {"en": "clamor", "ko": "소란, 아우성"}, {"en": "exclamation", "ko": "외침, 감탄"}, {"en": "proclamation", "ko": "선언"}, {"en": "reclamation", "ko": "회수, 간척"}, {"en": "context clue", "ko": "문맥 단서"}, {"en": "claimant", "ko": "청구인"}]}, {"n": 25, "root": "clude/clus", "root_meaning": "clude/clus=닫다/포함하다/막다", "words": [{"en": "include", "ko": "포함하다"}, {"en": "inclusive", "ko": "포함하는, 포괄적인"}, {"en": "exclude", "ko": "배제하다"}, {"en": "exclusive", "ko": "배타적인, 독점적인"}, {"en": "conclude", "ko": "결론짓다"}, {"en": "conclusion", "ko": "결론"}, {"en": "seclude", "ko": "고립시키다"}, {"en": "enclose", "ko": "동봉하다, 에워싸다"}, {"en": "preclude", "ko": "막다"}, {"en": "seclusion", "ko": "고립"}, {"en": "occlude", "ko": "막다"}, {"en": "related form", "ko": "관련 형태"}, {"en": "inclusion", "ko": "포함"}]}, {"n": 26, "root": "flict", "root_meaning": "flict=치다/부딪치다", "words": [{"en": "conflict", "ko": "갈등, 충돌"}, {"en": "inflict", "ko": "가하다, 괴롭히다"}, {"en": "affliction", "ko": "고통, 고난"}, {"en": "afflict", "ko": "괴롭히다"}, {"en": "infliction", "ko": "고통을 줌"}, {"en": "collision", "ko": "충돌"}, {"en": "clash", "ko": "충돌, 충돌하다"}, {"en": "combat", "ko": "전투, 싸우다"}, {"en": "strife", "ko": "갈등"}, {"en": "friction", "ko": "마찰"}, {"en": "fricative", "ko": "마찰음, 마찰의"}, {"en": "battlefield", "ko": "전장"}, {"en": "confrontation", "ko": "대립"}, {"en": "conflicted", "ko": "갈등하는"}]}, {"n": 27, "root": "flu/flux", "root_meaning": "flu/flux=흐르다", "words": [{"en": "flux", "ko": "변화, 유동"}, {"en": "fluid", "ko": "유동적인, 액체"}, {"en": "fluent", "ko": "유창한"}, {"en": "influence", "ko": "영향, 영향을 미치다"}, {"en": "fluctuate", "ko": "변동하다"}, {"en": "affluent", "ko": "부유한"}, {"en": "influential", "ko": "영향력 있는"}, {"en": "fluency", "ko": "유창성"}, {"en": "confluence", "ko": "합류"}, {"en": "effluent", "ko": "폐수"}, {"en": "fluctuation", "ko": "변동"}, {"en": "superfluity", "ko": "과잉"}, {"en": "influx", "ko": "유입"}]}, {"n": 28, "root": "grad/gress", "root_meaning": "grad/gress=걸어가다/단계", "words": [{"en": "grade", "ko": "등급, 학년"}, {"en": "gradual", "ko": "점진적인"}, {"en": "gradually", "ko": "점차적으로"}, {"en": "graduate", "ko": "졸업하다, 졸업생"}, {"en": "degrade", "ko": "저하시키다"}, {"en": "upgrade", "ko": "업그레이드하다"}, {"en": "aggressive", "ko": "공격적인"}, {"en": "regress", "ko": "퇴보하다"}, {"en": "congress", "ko": "의회, 국회"}, {"en": "degradation", "ko": "저하"}, {"en": "gradient", "ko": "경사도"}, {"en": "progressive", "ko": "진보적인, 점진적인"}, {"en": "gradualism", "ko": "점진주의"}]}, {"n": 29, "root": "ject", "root_meaning": "ject=던지다", "words": [{"en": "project", "ko": "투영하다, 프로젝트"}, {"en": "inject", "ko": "주입하다"}, {"en": "reject", "ko": "거부하다"}, {"en": "eject", "ko": "방출하다"}, {"en": "subject", "ko": "주제, 과목"}, {"en": "object", "ko": "물체, 반대하다"}, {"en": "interject", "ko": "불쑥 끼어들다"}, {"en": "projection", "ko": "투사, 계획"}, {"en": "projectile", "ko": "발사체"}, {"en": "dejection", "ko": "낙담"}, {"en": "ejection", "ko": "방출"}, {"en": "injection", "ko": "주입, 주사"}, {"en": "subjection", "ko": "종속"}]}, {"n": 30, "root": "lect/leg/lig", "root_meaning": "lect/leg/lig=고르다/읽다/묶다", "words": [{"en": "collect", "ko": "모으다, 수집하다"}, {"en": "collection", "ko": "수집, 컬렉션"}, {"en": "select", "ko": "선택하다"}, {"en": "selection", "ko": "선택"}, {"en": "elect", "ko": "선출하다"}, {"en": "election", "ko": "선거"}, {"en": "neglect", "ko": "게을리하다, 무시하다"}, {"en": "intellectual", "ko": "지적인, 지식인"}, {"en": "eligible", "ko": "적격의"}, {"en": "intelligence", "ko": "지능, 정보"}, {"en": "collective", "ko": "집단의"}, {"en": "collector", "ko": "수집가"}, {"en": "lecture", "ko": "강의"}]}, {"n": 31, "root": "mit/miss", "root_meaning": "mit/miss=보내다", "words": [{"en": "admit", "ko": "인정하다, 입장을 허용하다"}, {"en": "commit", "ko": "저지르다, 헌신하다"}, {"en": "commitment", "ko": "헌신, 약속"}, {"en": "permit", "ko": "허락하다"}, {"en": "permission", "ko": "허락"}, {"en": "submit", "ko": "제출하다"}, {"en": "omit", "ko": "생략하다"}, {"en": "mission", "ko": "임무, 사명"}, {"en": "admission", "ko": "입학, 인정"}, {"en": "intermittent", "ko": "간헐적인"}, {"en": "omission", "ko": "누락"}, {"en": "transmitter", "ko": "송신기"}, {"en": "submission", "ko": "제출, 복종"}]}, {"n": 32, "root": "pel/puls", "root_meaning": "pel/puls=밀다/몰아내다", "words": [{"en": "expel", "ko": "퇴학시키다, 쫓아내다"}, {"en": "propel", "ko": "추진하다"}, {"en": "repel", "ko": "격퇴하다"}, {"en": "compel", "ko": "강요하다"}, {"en": "impel", "ko": "자극하다"}, {"en": "impulse", "ko": "충동"}, {"en": "propeller", "ko": "프로펠러"}, {"en": "expulsion", "ko": "추방"}, {"en": "dispel", "ko": "없애다"}, {"en": "compulsion", "ko": "강박, 강제"}, {"en": "repellent", "ko": "쫓아내는, 방충제"}, {"en": "propellant", "ko": "추진제"}, {"en": "compulsive", "ko": "강박적인"}]}, {"n": 33, "root": "sol", "root_meaning": "sol=태양/홀로", "words": [{"en": "solo", "ko": "혼자의, 단독으로"}, {"en": "solitary", "ko": "혼자 하는, 고독한"}, {"en": "solitude", "ko": "고독"}, {"en": "desolate", "ko": "황량한, 쓸쓸한"}, {"en": "solar", "ko": "태양의"}, {"en": "isolate", "ko": "고립시키다"}, {"en": "isolation", "ko": "고립, 격리"}, {"en": "sole", "ko": "유일한, 혼자의"}, {"en": "solution", "ko": "해결책, 용액"}, {"en": "resolve", "ko": "해결하다, 결심하다"}, {"en": "resolution", "ko": "해결, 결의"}, {"en": "dissolve", "ko": "녹이다, 해산하다"}, {"en": "solarium", "ko": "일광욕실"}]}, {"n": 34, "root": "tend/tens/tent", "root_meaning": "tend/tens/tent=뻗다/잡아당기다", "words": [{"en": "tend", "ko": "돌보다, ~하는 경향이 있다"}, {"en": "attend", "ko": "참석하다"}, {"en": "attention", "ko": "주의"}, {"en": "extend", "ko": "연장하다"}, {"en": "extension", "ko": "연장"}, {"en": "intend", "ko": "의도하다"}, {"en": "intention", "ko": "의도"}, {"en": "contend", "ko": "다투다"}, {"en": "tense", "ko": "긴장한, 시제"}, {"en": "tension", "ko": "긴장감"}, {"en": "intense", "ko": "강렬한"}, {"en": "intensity", "ko": "강도"}, {"en": "intensive", "ko": "집중적인"}]}, {"n": 35, "root": "term", "root_meaning": "term=끝/경계", "words": [{"en": "term", "ko": "용어, 기간"}, {"en": "terminate", "ko": "종료하다"}, {"en": "terminal", "ko": "치명적인, 터미널"}, {"en": "determine", "ko": "결정하다"}, {"en": "determination", "ko": "결심"}, {"en": "exterminate", "ko": "박멸하다"}, {"en": "predetermined", "ko": "미리 정해진"}, {"en": "terminology", "ko": "전문 용어"}, {"en": "termination", "ko": "종료"}, {"en": "interminable", "ko": "끝없는"}, {"en": "midterm", "ko": "중간고사"}, {"en": "long-term", "ko": "장기적인"}, {"en": "determinate", "ko": "한정된"}]}, {"n": 36, "root": "tract", "root_meaning": "tract=끌다/당기다", "words": [{"en": "attract", "ko": "끌어들이다"}, {"en": "attraction", "ko": "매력, 끌림"}, {"en": "distract", "ko": "주의를 분산시키다"}, {"en": "distraction", "ko": "주의 분산"}, {"en": "extract", "ko": "추출하다"}, {"en": "contract", "ko": "계약, 수축하다"}, {"en": "traction", "ko": "견인력"}, {"en": "subtract", "ko": "빼다"}, {"en": "retract", "ko": "철회하다"}, {"en": "extraction", "ko": "추출"}, {"en": "detract", "ko": "깎아내리다"}, {"en": "distracted", "ko": "산만한"}, {"en": "retraction", "ko": "철회"}]}, {"n": 37, "root": "use", "root_meaning": "use=쓰다/사용하다", "words": [{"en": "use", "ko": "사용하다"}, {"en": "abuse", "ko": "남용하다, 학대"}, {"en": "misuse", "ko": "오용하다"}, {"en": "useful", "ko": "유용한"}, {"en": "useless", "ko": "쓸모없는"}, {"en": "utensil", "ko": "도구, 기구"}, {"en": "utility", "ko": "유용성"}, {"en": "reuse", "ko": "재사용하다"}, {"en": "utilize", "ko": "활용하다"}, {"en": "usable", "ko": "사용 가능한"}, {"en": "user-friendly", "ko": "사용자 친화적인"}, {"en": "usefulness", "ko": "유용성"}, {"en": "disuse", "ko": "폐용"}]}, {"n": 38, "root": "vac", "root_meaning": "vac=비어 있다", "words": [{"en": "vacant", "ko": "빈, 공석의"}, {"en": "vacation", "ko": "휴가"}, {"en": "vacuum", "ko": "진공, 공백"}, {"en": "evacuate", "ko": "대피하다"}, {"en": "vacancy", "ko": "공석, 빈자리"}, {"en": "evacuation", "ko": "대피"}, {"en": "void", "ko": "무효의, 공간"}, {"en": "avoid", "ko": "피하다"}, {"en": "vacate", "ko": "비우다"}, {"en": "vacillate", "ko": "흔들리다, 망설이다"}, {"en": "vacuous", "ko": "공허한"}, {"en": "vacuity", "ko": "공허함"}, {"en": "vacationer", "ko": "휴가객"}]}, {"n": 39, "root": "val", "root_meaning": "val=가치/강함", "words": [{"en": "value", "ko": "가치, 소중히 여기다"}, {"en": "evaluate", "ko": "평가하다"}, {"en": "evaluation", "ko": "평가"}, {"en": "invalid", "ko": "무효의, 병약한"}, {"en": "valid", "ko": "유효한, 타당한"}, {"en": "validity", "ko": "유효성"}, {"en": "equivalent", "ko": "동등한"}, {"en": "prevail", "ko": "우세하다, 만연하다"}, {"en": "validate", "ko": "입증하다"}, {"en": "validation", "ko": "검증"}, {"en": "prevalent", "ko": "널리 퍼진"}, {"en": "prevalence", "ko": "유행, 보급"}, {"en": "valor", "ko": "용기"}]}, {"n": 40, "root": "van", "root_meaning": "van=헛된/비어 있는", "words": [{"en": "vanish", "ko": "사라지다"}, {"en": "vanity", "ko": "허영심, 헛됨"}, {"en": "vain", "ko": "헛된, 허영심 강한"}, {"en": "evanescent", "ko": "덧없는"}, {"en": "futile", "ko": "헛된, 소용없는"}, {"en": "evanesce", "ko": "점차 사라지다"}, {"en": "vague", "ko": "모호한, 막연한"}, {"en": "vanguard", "ko": "선봉"}, {"en": "disadvantage", "ko": "불리한 점"}, {"en": "common usage", "ko": "일반 용법"}, {"en": "vanishing", "ko": "사라지는"}, {"en": "evanescence", "ko": "소멸"}, {"en": "vanquisher", "ko": "정복자"}]}, {"n": 41, "root": "ven/vent", "root_meaning": "ven/vent=오다", "words": [{"en": "convene", "ko": "소집하다"}, {"en": "convention", "ko": "관습, 협약"}, {"en": "convenient", "ko": "편리한"}, {"en": "prevent", "ko": "방지하다"}, {"en": "prevention", "ko": "예방"}, {"en": "intervene", "ko": "개입하다"}, {"en": "invention", "ko": "발명"}, {"en": "avenue", "ko": "거리, 방법"}, {"en": "eventual", "ko": "최종적인"}, {"en": "eventually", "ko": "결국"}, {"en": "convenience", "ko": "편리"}, {"en": "advent", "ko": "도래"}, {"en": "preventive", "ko": "예방의"}]}, {"n": 42, "root": "ver", "root_meaning": "ver=진실", "words": [{"en": "verify", "ko": "확인하다"}, {"en": "verification", "ko": "확인"}, {"en": "verdict", "ko": "판결"}, {"en": "veracity", "ko": "진실성"}, {"en": "version", "ko": "버전, 형태"}, {"en": "versatile", "ko": "다재다능한"}, {"en": "universal", "ko": "보편적인"}, {"en": "verifiable", "ko": "확인 가능한"}, {"en": "truthful", "ko": "진실한"}, {"en": "veritable", "ko": "진정한"}, {"en": "converse", "ko": "대화하다, 반대의"}, {"en": "veracious", "ko": "진실한"}, {"en": "verily", "ko": "참으로"}]}, {"n": 43, "root": "viv/vit", "root_meaning": "viv/vit=살다/생명", "words": [{"en": "vivid", "ko": "생생한"}, {"en": "vivacious", "ko": "활기찬"}, {"en": "survive", "ko": "살아남다"}, {"en": "survival", "ko": "생존"}, {"en": "revive", "ko": "부활시키다"}, {"en": "revival", "ko": "부활"}, {"en": "lively", "ko": "활기찬"}, {"en": "lifelike", "ko": "실물 같은"}, {"en": "vivification", "ko": "생기 부여"}, {"en": "revivify", "ko": "되살리다"}, {"en": "vivisection", "ko": "생체 해부"}, {"en": "survivor", "ko": "생존자"}, {"en": "viviparity", "ko": "태생"}]}, {"n": 44, "root": "voc/vok", "root_meaning": "voc/vok=부르다/목소리", "words": [{"en": "vocal", "ko": "목소리의"}, {"en": "vocalist", "ko": "가수"}, {"en": "vocation", "ko": "직업, 천직"}, {"en": "vocabulary", "ko": "어휘"}, {"en": "advocate", "ko": "옹호하다, 옹호론자"}, {"en": "provoke", "ko": "유발하다"}, {"en": "vocalize", "ko": "소리 내다"}, {"en": "convocation", "ko": "소집"}, {"en": "evocative", "ko": "연상시키는"}, {"en": "provocative", "ko": "도발적인"}, {"en": "revocation", "ko": "철회"}, {"en": "vocable", "ko": "말, 낱말"}, {"en": "voiceover", "ko": "내레이션"}]}, {"n": 45, "root": "vol", "root_meaning": "vol=의지/원하다", "words": [{"en": "volunteer", "ko": "자원봉사자"}, {"en": "voluntary", "ko": "자발적인"}, {"en": "volition", "ko": "의지"}, {"en": "benevolent", "ko": "자비로운"}, {"en": "malevolent", "ko": "악의적인"}, {"en": "volume", "ko": "부피, 음량"}, {"en": "vault", "ko": "금고, 도약하다"}, {"en": "volunteerism", "ko": "자원봉사 정신"}, {"en": "voluntarism", "ko": "자발주의"}, {"en": "voluntarily", "ko": "자발적으로"}, {"en": "volitionary", "ko": "의지의"}, {"en": "volunteer coordinator", "ko": "자원봉사 조정자"}, {"en": "voluntaryism", "ko": "자발주의"}]}, {"n": 46, "root": "volv/volut", "root_meaning": "volv/volut=굴리다/돌다", "words": [{"en": "revolve", "ko": "돌다, 회전하다"}, {"en": "revolution", "ko": "혁명, 회전"}, {"en": "revolutionary", "ko": "혁명적인"}, {"en": "evolve", "ko": "진화하다"}, {"en": "evolution", "ko": "진화"}, {"en": "involve", "ko": "수반하다, 포함하다"}, {"en": "turnover", "ko": "회전율, 이직률"}, {"en": "revolutionize", "ko": "혁신하다"}, {"en": "unfold", "ko": "펼쳐지다"}, {"en": "volatilize", "ko": "휘발시키다"}, {"en": "volatility", "ko": "변동성, 휘발성"}, {"en": "volumetric", "ko": "부피 측정의"}, {"en": "revolver", "ko": "회전식 권총"}]}, {"n": 47, "root": "zoo", "root_meaning": "zoo=동물", "words": [{"en": "zoo", "ko": "동물원"}, {"en": "zoology", "ko": "동물학"}, {"en": "zodiac", "ko": "황도대, 12궁도"}, {"en": "zoologist", "ko": "동물학자"}, {"en": "zoological", "ko": "동물학의"}, {"en": "zooplankton", "ko": "동물성 플랑크톤"}, {"en": "zookeeper", "ko": "동물원 사육사"}, {"en": "zoonotic", "ko": "동물 매개성의"}, {"en": "protozoa", "ko": "원생동물"}, {"en": "zootopia", "ko": "동물 이상향"}, {"en": "zoogeography", "ko": "동물지리학"}, {"en": "zoologically", "ko": "동물학적으로"}, {"en": "zoography", "ko": "동물 기술학"}]}, {"n": 48, "root": "arch", "root_meaning": "arch=우두머리/근본", "words": [{"en": "archive", "ko": "기록 보관물, 보관하다"}, {"en": "architect", "ko": "건축가"}, {"en": "architecture", "ko": "건축"}, {"en": "anarchy", "ko": "무정부 상태"}, {"en": "monarchy", "ko": "군주제"}, {"en": "hierarchy", "ko": "계층 구조"}, {"en": "archaic", "ko": "고풍의, 구식의"}, {"en": "monarch", "ko": "군주"}, {"en": "patriarch", "ko": "가부장"}, {"en": "archipelago", "ko": "군도"}, {"en": "archrival", "ko": "최대 경쟁자"}, {"en": "archetype", "ko": "원형"}, {"en": "archival", "ko": "기록 보관의"}]}, {"n": 49, "root": "auto", "root_meaning": "auto=스스로", "words": [{"en": "automatic", "ko": "자동의"}, {"en": "automobile", "ko": "자동차"}, {"en": "autonomy", "ko": "자율성"}, {"en": "autograph", "ko": "서명"}, {"en": "autobiography", "ko": "자서전"}, {"en": "autonomous", "ko": "자율적인"}, {"en": "autopilot", "ko": "자동 조종 장치"}, {"en": "autocracy", "ko": "독재 정치"}, {"en": "automate", "ko": "자동화하다"}, {"en": "autopsy", "ko": "부검"}, {"en": "autobiographical", "ko": "자서전의"}, {"en": "autocrat", "ko": "독재자"}, {"en": "automated", "ko": "자동화된"}]}, {"n": 50, "root": "bio", "root_meaning": "bio=생명/삶", "words": [{"en": "biology", "ko": "생물학"}, {"en": "biologist", "ko": "생물학자"}, {"en": "biography", "ko": "전기"}, {"en": "antibiotic", "ko": "항생제"}, {"en": "biosphere", "ko": "생물권"}, {"en": "biodiversity", "ko": "생물 다양성"}, {"en": "symbiosis", "ko": "공생"}, {"en": "biochemistry", "ko": "생화학"}, {"en": "biopsy", "ko": "생체 검사"}, {"en": "biotechnology", "ko": "생명공학"}, {"en": "biological", "ko": "생물학의"}, {"en": "biodegradable", "ko": "생분해성의"}, {"en": "biographer", "ko": "전기 작가"}]}, {"n": 51, "root": "chron", "root_meaning": "chron=시간", "words": [{"en": "chronic", "ko": "만성의"}, {"en": "chronicle", "ko": "연대기"}, {"en": "synchronize", "ko": "동시에 맞추다"}, {"en": "synchronization", "ko": "동기화"}, {"en": "chronology", "ko": "연대기"}, {"en": "anachronism", "ko": "시대착오"}, {"en": "synchronous", "ko": "동시의"}, {"en": "chronological", "ko": "연대순의"}, {"en": "chronometer", "ko": "정밀 시계"}, {"en": "timekeeping", "ko": "시간 기록"}, {"en": "chronobiology", "ko": "시간생물학"}, {"en": "chronotherapy", "ko": "시간 치료"}, {"en": "chronography", "ko": "연대 기록"}]}, {"n": 52, "root": "dem", "root_meaning": "dem=사람/민중", "words": [{"en": "democracy", "ko": "민주주의"}, {"en": "democratic", "ko": "민주적인"}, {"en": "democrat", "ko": "민주주의자"}, {"en": "epidemic", "ko": "유행병"}, {"en": "endemic", "ko": "토착의"}, {"en": "pandemic", "ko": "범유행병"}, {"en": "demographics", "ko": "인구 통계"}, {"en": "demographic", "ko": "인구통계의"}, {"en": "democratize", "ko": "민주화하다"}, {"en": "demotic", "ko": "민중의"}, {"en": "demos", "ko": "민중"}, {"en": "democratization", "ko": "민주화"}, {"en": "demolition", "ko": "철거"}]}, {"n": 53, "root": "geo", "root_meaning": "geo=땅/지구", "words": [{"en": "geology", "ko": "지질학"}, {"en": "geologist", "ko": "지질학자"}, {"en": "geography", "ko": "지리학"}, {"en": "geometry", "ko": "기하학"}, {"en": "geothermal", "ko": "지열의"}, {"en": "geopolitical", "ko": "지정학적인"}, {"en": "geological", "ko": "지질학의"}, {"en": "geophysics", "ko": "지구물리학"}, {"en": "geopolitics", "ko": "지정학"}, {"en": "geospatial", "ko": "지리공간의"}, {"en": "geodesic", "ko": "측지선의, 측지선"}, {"en": "geographer", "ko": "지리학자"}, {"en": "geometric", "ko": "기하학의"}]}, {"n": 54, "root": "log/logy", "root_meaning": "log=말/이성, logy=학문", "words": [{"en": "logic", "ko": "논리"}, {"en": "logical", "ko": "논리적인"}, {"en": "dialogue", "ko": "대화"}, {"en": "prologue", "ko": "서문"}, {"en": "epilogue", "ko": "에필로그"}, {"en": "monologue", "ko": "독백"}, {"en": "catalogue", "ko": "목록, 목록화하다"}, {"en": "logicality", "ko": "논리성"}, {"en": "neologism", "ko": "신조어"}, {"en": "ology", "ko": "학문 분야"}, {"en": "logophile", "ko": "언어 애호가"}, {"en": "logorrhea", "ko": "다변증"}, {"en": "dialogic", "ko": "대화의"}]}, {"n": 55, "root": "meter/metr", "root_meaning": "meter/metr=재다/측정하다", "words": [{"en": "meter", "ko": "미터"}, {"en": "thermometer", "ko": "온도계"}, {"en": "barometer", "ko": "기압계"}, {"en": "diameter", "ko": "지름"}, {"en": "symmetry", "ko": "대칭"}, {"en": "parameter", "ko": "매개변수"}, {"en": "perimeter", "ko": "둘레"}, {"en": "odometer", "ko": "주행 거리계"}, {"en": "speedometer", "ko": "속도계"}, {"en": "altimeter", "ko": "고도계"}, {"en": "metric", "ko": "미터법의, 기준"}, {"en": "trigonometry", "ko": "삼각법"}, {"en": "metrication", "ko": "미터법화"}]}, {"n": 56, "root": "path", "root_meaning": "path=느끼다/고통", "words": [{"en": "sympathy", "ko": "연민"}, {"en": "sympathize", "ko": "동정하다"}, {"en": "empathy", "ko": "공감"}, {"en": "apathy", "ko": "무관심"}, {"en": "pathetic", "ko": "불쌍한"}, {"en": "pathology", "ko": "병리학"}, {"en": "antipathy", "ko": "반감"}, {"en": "psychopath", "ko": "정신병자"}, {"en": "apathetic", "ko": "무관심한"}, {"en": "pathos", "ko": "연민을 자아내는 힘"}, {"en": "pathogen", "ko": "병원체"}, {"en": "pathogenic", "ko": "병원성의"}, {"en": "pathologist", "ko": "병리학자"}]}, {"n": 57, "root": "phon", "root_meaning": "phon=소리", "words": [{"en": "telephone", "ko": "전화"}, {"en": "microphone", "ko": "마이크"}, {"en": "symphony", "ko": "교향곡"}, {"en": "phonics", "ko": "파닉스"}, {"en": "earphone", "ko": "이어폰"}, {"en": "headphone", "ko": "헤드폰"}, {"en": "phonology", "ko": "음운론"}, {"en": "euphony", "ko": "듣기 좋은 소리"}, {"en": "cacophony", "ko": "불협화음"}, {"en": "phonetics", "ko": "음성학"}, {"en": "megaphone", "ko": "확성기"}, {"en": "homophone", "ko": "동음이의어"}, {"en": "phonetic", "ko": "음성의"}]}, {"n": 58, "root": "poly", "root_meaning": "poly=많은", "words": [{"en": "polygon", "ko": "다각형"}, {"en": "polyglot", "ko": "다언어 구사자"}, {"en": "polyester", "ko": "폴리에스터"}, {"en": "polytheism", "ko": "다신론"}, {"en": "polyphony", "ko": "다성음악"}, {"en": "polynomial", "ko": "다항식"}, {"en": "polygamy", "ko": "일부다처제"}, {"en": "polymath", "ko": "박학다식한 사람"}, {"en": "polymer", "ko": "고분자"}, {"en": "polytechnic", "ko": "공과대학, 기술의"}, {"en": "polysyllabic", "ko": "다음절의"}, {"en": "polyphonic", "ko": "다성의"}, {"en": "polysemy", "ko": "다의성"}]}, {"n": 59, "root": "psych", "root_meaning": "psych=마음/정신", "words": [{"en": "psychology", "ko": "심리학"}, {"en": "psychologist", "ko": "심리학자"}, {"en": "psychological", "ko": "심리적인"}, {"en": "psychic", "ko": "심령의"}, {"en": "psychiatry", "ko": "정신의학"}, {"en": "psychotherapy", "ko": "심리치료"}, {"en": "psyche", "ko": "정신, 마음"}, {"en": "psychosis", "ko": "정신병"}, {"en": "psychiatrist", "ko": "정신과 의사"}, {"en": "psychoanalysis", "ko": "정신분석"}, {"en": "psychometric", "ko": "심리 측정의"}, {"en": "psychosomatic", "ko": "심신의"}, {"en": "psychodynamic", "ko": "정신역동의"}]}, {"n": 60, "root": "tele", "root_meaning": "tele=멀리", "words": [{"en": "telegraph", "ko": "전보"}, {"en": "teleprinter", "ko": "전신 타자기"}, {"en": "telescope", "ko": "망원경"}, {"en": "telepathy", "ko": "텔레파시"}, {"en": "television", "ko": "텔레비전"}, {"en": "telecommunication", "ko": "원거리 통신"}, {"en": "teleconference", "ko": "화상 회의"}, {"en": "telemetry", "ko": "원격 측정"}, {"en": "telemedicine", "ko": "원격 의료"}, {"en": "telecast", "ko": "텔레비전 방송"}, {"en": "telecommute", "ko": "재택근무하다"}, {"en": "telephoto", "ko": "망원 촬영의"}, {"en": "telecommunications", "ko": "전기통신"}]}, {"n": 61, "root": "the/theo", "root_meaning": "the=두다, theo=신", "words": [{"en": "theology", "ko": "신학"}, {"en": "theologian", "ko": "신학자"}, {"en": "theist", "ko": "유신론자"}, {"en": "atheism", "ko": "무신론"}, {"en": "atheist", "ko": "무신론자"}, {"en": "pantheism", "ko": "범신론"}, {"en": "theocracy", "ko": "신정정치"}, {"en": "monotheism", "ko": "유일신론"}, {"en": "theological", "ko": "신학의"}, {"en": "theodicy", "ko": "신정론"}, {"en": "deity", "ko": "신"}, {"en": "theoretical", "ko": "이론적인"}, {"en": "polytheistic", "ko": "다신교의"}]}, {"n": 62, "root": "therm", "root_meaning": "therm=열", "words": [{"en": "thermal", "ko": "열의"}, {"en": "thermometric", "ko": "온도 측정의"}, {"en": "thermostat", "ko": "온도 조절 장치"}, {"en": "thermos", "ko": "보온병"}, {"en": "thermogenic", "ko": "열을 발생시키는"}, {"en": "thermodynamics", "ko": "열역학"}, {"en": "hyperthermia", "ko": "고체온증"}, {"en": "isothermal", "ko": "등온의"}, {"en": "thermoplastic", "ko": "열가소성 플라스틱, 열가소성의"}, {"en": "thermonuclear", "ko": "열핵의"}, {"en": "thermography", "ko": "열화상 촬영"}, {"en": "thermochemistry", "ko": "열화학"}, {"en": "endothermic", "ko": "흡열의"}]}, {"n": 63, "root": "uni", "root_meaning": "uni=하나", "words": [{"en": "unit", "ko": "단위"}, {"en": "union", "ko": "연합"}, {"en": "unique", "ko": "독특한"}, {"en": "universe", "ko": "우주"}, {"en": "unity", "ko": "통일"}, {"en": "uniform", "ko": "균일한, 제복"}, {"en": "unify", "ko": "통일하다"}, {"en": "unanimous", "ko": "만장일치의"}, {"en": "unicorn", "ko": "유니콘"}, {"en": "unification", "ko": "통합"}, {"en": "unilateral", "ko": "일방적인"}, {"en": "unicycle", "ko": "외발자전거"}, {"en": "unison", "ko": "일치"}]}, {"n": 64, "root": "bi", "root_meaning": "bi=둘/두 개", "words": [{"en": "bicycle", "ko": "자전거"}, {"en": "bilingual", "ko": "이중 언어의"}, {"en": "biennial", "ko": "2년마다의"}, {"en": "bilateral", "ko": "양자 간의"}, {"en": "binary", "ko": "이진법의"}, {"en": "bifocal", "ko": "이중 초점의"}, {"en": "bipartisan", "ko": "초당파적인"}, {"en": "bisect", "ko": "이등분하다"}, {"en": "bimonthly", "ko": "격월의"}, {"en": "biannual", "ko": "연 2회의"}, {"en": "bipolar", "ko": "양극성의"}, {"en": "bicameral", "ko": "양원제의"}, {"en": "binoculars", "ko": "쌍안경"}]}, {"n": 65, "root": "tri", "root_meaning": "tri=셋", "words": [{"en": "triangle", "ko": "삼각형"}, {"en": "tripod", "ko": "삼각대"}, {"en": "tricycle", "ko": "세발자전거"}, {"en": "trilogy", "ko": "3부작"}, {"en": "triple", "ko": "세 배의"}, {"en": "trio", "ko": "3인조"}, {"en": "triathlon", "ko": "트라이애슬론"}, {"en": "trilingual", "ko": "3개 국어를 하는"}, {"en": "trinity", "ko": "삼위일체"}, {"en": "tripartite", "ko": "세 부분의"}, {"en": "tricolor", "ko": "삼색기, 삼색의"}, {"en": "trident", "ko": "삼지창"}, {"en": "trilateral", "ko": "삼자 간의"}]}, {"n": 66, "root": "cent", "root_meaning": "cent=백/중심", "words": [{"en": "century", "ko": "세기"}, {"en": "centimeter", "ko": "센티미터"}, {"en": "centipede", "ko": "지네"}, {"en": "percent", "ko": "퍼센트"}, {"en": "percentage", "ko": "비율"}, {"en": "centennial", "ko": "100년의"}, {"en": "centigrade", "ko": "섭씨의"}, {"en": "centurion", "ko": "백부장"}, {"en": "bicentennial", "ko": "200주년"}, {"en": "central", "ko": "중심의"}, {"en": "centralize", "ko": "중앙집권화하다"}, {"en": "centrist", "ko": "중도파"}, {"en": "centuple", "ko": "백 배의"}]}, {"n": 67, "root": "dec", "root_meaning": "dec=10(십)/적절함", "words": [{"en": "decade", "ko": "10년"}, {"en": "decimal", "ko": "십진법의"}, {"en": "decimeter", "ko": "데시미터"}, {"en": "decagon", "ko": "십각형"}, {"en": "decimate", "ko": "크게 줄이다"}, {"en": "December", "ko": "12월"}, {"en": "decibel", "ko": "데시벨"}, {"en": "decathlon", "ko": "10종 경기"}, {"en": "deciliter", "ko": "데시리터"}, {"en": "decahedron", "ko": "십면체"}, {"en": "decathlon athlete", "ko": "10종 경기 선수"}, {"en": "decaliter", "ko": "데칼리터"}, {"en": "decalogue", "ko": "십계명"}]}, {"n": 68, "root": "kilo", "root_meaning": "kilo=천", "words": [{"en": "kilogram", "ko": "킬로그램"}, {"en": "kilometer", "ko": "킬로미터"}, {"en": "kilowatt", "ko": "킬로와트"}, {"en": "kilobyte", "ko": "킬로바이트"}, {"en": "kilohertz", "ko": "킬로헤르츠"}, {"en": "kiloliter", "ko": "킬로리터"}, {"en": "kilocalorie", "ko": "킬로칼로리"}, {"en": "kiloton", "ko": "킬로톤"}, {"en": "kilonewton", "ko": "킬로뉴턴"}, {"en": "kilopascal", "ko": "킬로파스칼"}, {"en": "kilobit", "ko": "킬로비트"}, {"en": "kilovolt", "ko": "킬로볼트"}, {"en": "kilogauss", "ko": "킬로가우스"}]}, {"n": 69, "root": "mill", "root_meaning": "mill=천", "words": [{"en": "millimeter", "ko": "밀리미터"}, {"en": "million", "ko": "백만"}, {"en": "millennium", "ko": "천년"}, {"en": "millipede", "ko": "노래기"}, {"en": "milligram", "ko": "밀리그램"}, {"en": "millisecond", "ko": "밀리초"}, {"en": "milliliter", "ko": "밀리리터"}, {"en": "millefleur", "ko": "잔꽃무늬"}, {"en": "millennial", "ko": "천 년의, 밀레니얼 세대"}, {"en": "milliampere", "ko": "밀리암페어"}, {"en": "millivolt", "ko": "밀리볼트"}, {"en": "millisecond timing", "ko": "밀리초 단위 시간 측정"}, {"en": "millibar", "ko": "밀리바"}]}, {"n": 70, "root": "semi", "root_meaning": "semi=반/절반", "words": [{"en": "semicircle", "ko": "반원"}, {"en": "semicolon", "ko": "세미콜론"}, {"en": "semifinal", "ko": "준결승"}, {"en": "semiconductor", "ko": "반도체"}, {"en": "semiautomatic", "ko": "반자동의"}, {"en": "semitransparent", "ko": "반투명한"}, {"en": "semiannual", "ko": "반년마다의"}, {"en": "semiconscious", "ko": "반쯤 의식이 있는"}, {"en": "semidetached", "ko": "반분리형의"}, {"en": "semipermeable", "ko": "반투과성의"}, {"en": "semiformal", "ko": "준정장의"}, {"en": "semiliterate", "ko": "반문맹의"}, {"en": "semiprofessional", "ko": "준전문가의"}]}, {"n": 71, "root": "anti", "root_meaning": "anti=반대/막는", "words": [{"en": "antitoxin", "ko": "항독소"}, {"en": "antibody", "ko": "항체"}, {"en": "antidote", "ko": "해독제"}, {"en": "antisocial", "ko": "반사회적인"}, {"en": "antonym", "ko": "반의어"}, {"en": "antivirus", "ko": "바이러스 방지의"}, {"en": "anticlimax", "ko": "용두사미"}, {"en": "antiwar", "ko": "반전의"}, {"en": "antihero", "ko": "반영웅"}, {"en": "antiseptic", "ko": "방부의, 소독제"}, {"en": "antifreeze", "ko": "부동액"}, {"en": "antithesis", "ko": "정반대"}, {"en": "antagonist", "ko": "적대자"}]}, {"n": 72, "root": "contra", "root_meaning": "contra=반대하여", "words": [{"en": "contrapose", "ko": "대조시키다, 대비하다"}, {"en": "contrariety", "ko": "상반됨, 대립"}, {"en": "contradictory", "ko": "모순적인"}, {"en": "contrary", "ko": "반대의"}, {"en": "contrast", "ko": "대조"}, {"en": "controversial", "ko": "논쟁적인"}, {"en": "controversy", "ko": "논쟁"}, {"en": "contravene", "ko": "위반하다"}, {"en": "contrarian", "ko": "반대 의견을 내는 사람"}, {"en": "contraceptive", "ko": "피임기구, 피임의"}, {"en": "counterargument", "ko": "반론"}, {"en": "coexist", "ko": "공존하다"}, {"en": "contrastive", "ko": "대조적인"}]}, {"n": 73, "root": "sub", "root_meaning": "sub=아래에", "words": [{"en": "submarine", "ko": "잠수함"}, {"en": "suburb", "ko": "교외"}, {"en": "subconscious", "ko": "잠재의식의"}, {"en": "subsequent", "ko": "뒤따르는"}, {"en": "substitute", "ko": "대체하다"}, {"en": "submerge", "ko": "잠기다"}, {"en": "subordinate", "ko": "하위의"}, {"en": "substantial", "ko": "실질적인"}, {"en": "subway", "ko": "지하철"}, {"en": "subsidy", "ko": "보조금"}, {"en": "substandard", "ko": "기준 이하의"}, {"en": "subtitle", "ko": "자막"}, {"en": "subcommittee", "ko": "소위원회"}]}, {"n": 74, "root": "super", "root_meaning": "super=위에/넘어", "words": [{"en": "superior", "ko": "우수한"}, {"en": "supervise", "ko": "감독하다"}, {"en": "supernatural", "ko": "초자연적인"}, {"en": "superb", "ko": "훌륭한"}, {"en": "superficial", "ko": "피상적인"}, {"en": "superfluous", "ko": "불필요한"}, {"en": "supersede", "ko": "대체하다"}, {"en": "surplus", "ko": "잉여"}, {"en": "superpower", "ko": "초강대국"}, {"en": "superimpose", "ko": "겹쳐 놓다"}, {"en": "superstructure", "ko": "상부 구조"}, {"en": "superhuman", "ko": "초인적인"}, {"en": "supermarket", "ko": "슈퍼마켓"}]}, {"n": 75, "root": "trans", "root_meaning": "trans=가로질러/넘어", "words": [{"en": "transform", "ko": "변환하다"}, {"en": "transship", "ko": "환적하다"}, {"en": "translate", "ko": "번역하다"}, {"en": "transition", "ko": "전환"}, {"en": "transmit", "ko": "전송하다"}, {"en": "transparent", "ko": "투명한"}, {"en": "transcend", "ko": "초월하다"}, {"en": "transplant", "ko": "이식하다"}, {"en": "transfusion", "ko": "수혈"}, {"en": "transatlantic", "ko": "대서양 횡단의"}, {"en": "transcontinental", "ko": "대륙 횡단의"}, {"en": "transitory", "ko": "일시적인"}, {"en": "transnational", "ko": "초국가적인"}]}, {"n": 76, "root": "inter", "root_meaning": "inter=사이에/서로", "words": [{"en": "international", "ko": "국제적인"}, {"en": "interconnect", "ko": "서로 연결하다"}, {"en": "interact", "ko": "상호 작용하다"}, {"en": "interpret", "ko": "해석하다"}, {"en": "interrupt", "ko": "방해하다"}, {"en": "intermediate", "ko": "중간의"}, {"en": "interval", "ko": "간격"}, {"en": "intersection", "ko": "교차점"}, {"en": "interlude", "ko": "막간"}, {"en": "interchange", "ko": "교환, 교환하다"}, {"en": "intermission", "ko": "휴식 시간"}, {"en": "interfere", "ko": "간섭하다"}, {"en": "intercity", "ko": "도시 간의"}]}, {"n": 77, "root": "pre", "root_meaning": "pre=앞에/미리", "words": [{"en": "prefigure", "ko": "예고하다, 미리 보여 주다"}, {"en": "preempt", "ko": "선점하다, 선수를 치다"}, {"en": "previous", "ko": "이전의"}, {"en": "preexist", "ko": "미리 존재하다"}, {"en": "preserve", "ko": "보존하다"}, {"en": "prepare", "ko": "준비하다"}, {"en": "preliminary", "ko": "예비의"}, {"en": "preview", "ko": "미리 보기"}, {"en": "prehistory", "ko": "선사 시대"}, {"en": "preface", "ko": "서문"}, {"en": "prearrange", "ko": "미리 정하다"}, {"en": "prepay", "ko": "선불하다"}, {"en": "prepaid", "ko": "선불의"}]}, {"n": 78, "root": "post", "root_meaning": "post=뒤에/이후", "words": [{"en": "postpone", "ko": "연기하다"}, {"en": "postscript", "ko": "추신"}, {"en": "postgraduate", "ko": "대학원의"}, {"en": "postwar", "ko": "전후의"}, {"en": "posterior", "ko": "뒤쪽의"}, {"en": "posthumous", "ko": "사후의"}, {"en": "postmodern", "ko": "포스트모던의"}, {"en": "postcolonial", "ko": "탈식민지의"}, {"en": "postnatal", "ko": "출생 후의"}, {"en": "juxtaposition", "ko": "병치"}, {"en": "reposition", "ko": "위치를 바꾸다"}, {"en": "repose", "ko": "휴식, 쉬다"}, {"en": "postdate", "ko": "날짜를 뒤로 잡다"}]}, {"n": 79, "root": "re", "root_meaning": "re=다시/뒤로", "words": [{"en": "return", "ko": "돌아오다"}, {"en": "review", "ko": "검토하다"}, {"en": "rebuild", "ko": "재건하다"}, {"en": "recover", "ko": "회복하다"}, {"en": "recycle", "ko": "재활용하다"}, {"en": "reinforce", "ko": "강화하다"}, {"en": "restore", "ko": "복원하다"}, {"en": "renew", "ko": "갱신하다"}, {"en": "reproduce", "ko": "재생하다"}, {"en": "revise", "ko": "수정하다"}, {"en": "reconsider", "ko": "재고하다"}, {"en": "reappear", "ko": "다시 나타나다"}, {"en": "rearrange", "ko": "다시 배열하다"}]}, {"n": 80, "root": "co/con/com", "root_meaning": "co/con/com=함께/완전히", "words": [{"en": "cooperate", "ko": "협력하다"}, {"en": "coordinate", "ko": "조정하다"}, {"en": "combine", "ko": "결합하다"}, {"en": "collaborate", "ko": "협업하다"}, {"en": "connect", "ko": "연결하다"}, {"en": "communicate", "ko": "의사소통하다"}, {"en": "compile", "ko": "편집하다"}, {"en": "contribute", "ko": "기여하다"}, {"en": "coauthor", "ko": "공동 저자, 공동 집필하다"}, {"en": "copilot", "ko": "부조종사"}, {"en": "cofounder", "ko": "공동 창립자"}, {"en": "cohesion", "ko": "응집력"}, {"en": "compatriot", "ko": "동포"}]}, {"n": 81, "root": "co/con/com", "root_meaning": "co/con/com=함께/완전히", "words": [{"en": "cohere", "ko": "결합하다, 응집하다"}, {"en": "confirm", "ko": "확인하다"}, {"en": "consider", "ko": "고려하다"}, {"en": "context", "ko": "맥락, 상황"}, {"en": "convince", "ko": "설득하다"}, {"en": "conjoin", "ko": "결합하다"}, {"en": "continue", "ko": "계속하다"}, {"en": "coherent", "ko": "일관성 있는"}, {"en": "coincide", "ko": "동시에 일어나다"}, {"en": "coalition", "ko": "연합"}, {"en": "consensus", "ko": "합의"}, {"en": "converge", "ko": "모이다"}, {"en": "cofounding", "ko": "공동 창립"}]}, {"n": 82, "root": "in/im/il/ir", "root_meaning": "in/im/il/ir=안으로/아니다", "words": [{"en": "impossible", "ko": "불가능한"}, {"en": "invisible", "ko": "보이지 않는"}, {"en": "inactive", "ko": "비활성의"}, {"en": "inadequate", "ko": "불충분한"}, {"en": "inefficient", "ko": "비효율적인"}, {"en": "irresponsible", "ko": "무책임한"}, {"en": "irregular", "ko": "불규칙한"}, {"en": "irrational", "ko": "비이성적인"}, {"en": "inaccurate", "ko": "부정확한"}, {"en": "incomplete", "ko": "불완전한"}, {"en": "indirect", "ko": "간접적인"}, {"en": "injustice", "ko": "불의"}, {"en": "informal", "ko": "비공식의"}]}];
+
+// ============== STATE ==============
+let SETTINGS = {
+  startDate: '2026-09-03',
+  openHour: 16,
+  secondsPerQuestion: 10,
+  pin: "1234"
+};
+let student = null;
+
+function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+function pad(n,l){ return String(n).padStart(l,'0'); }
+function todayStr(d){ d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1,2)+'-'+pad(d.getDate(),2); }
+function showToast(msg){
+  const t = el(`<div class="toast">${msg}</div>`);
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+
+async function loadSettings(){
+  try{
+    const snap = await getDoc(doc(db, COL_SETTINGS, SETTINGS_DOC));
+    if(snap.exists()) Object.assign(SETTINGS, snap.data());
+  }catch(e){ console.error('settings load failed', e); }
+}
+async function saveSettings(){
+  await setDoc(doc(db, COL_SETTINGS, SETTINGS_DOC), SETTINGS);
+}
+
+function computeDayInfo(dateObj){
+  if(!SETTINGS.startDate) return {idx:null, weekend:false, notStarted:true};
+  const start = new Date(SETTINGS.startDate + 'T00:00:00');
+  const now = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  const startMid = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  if(now < startMid) return {idx:null, weekend:false, notStarted:true};
+  let idx = -1;
+  let cursor = new Date(startMid);
+  while(cursor <= now){
+    const day = cursor.getDay();
+    if(day !== 0 && day !== 6) idx++;
+    cursor.setDate(cursor.getDate()+1);
+  }
+  const todayDay = now.getDay();
+  if(todayDay === 0 || todayDay === 6) return {idx:null, weekend:true, notStarted:false};
+  return {idx, weekend:false, notStarted:false};
+}
+
+function unitRangeForDayIndex(idx){
+  const startUnit = idx*2 + 1;
+  const endUnit = idx*2 + 2;
+  if(startUnit > 82) return null;
+  return {start: startUnit, end: Math.min(endUnit,82)};
+}
+
+function isWithinTestWindow(){
+  const now = new Date();
+  return now.getHours() >= SETTINGS.openHour;
+}
+
+function studentKey(cls, num){ return (cls+'_'+num).replace(/\s+/g,''); }
+
+// day type: 'new' (mon/tue/thu/fri), 'new+review' (wed), 'review' (sat/sun)
+function getDayType(dateObj){
+  const d = dateObj.getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+  if(d===0 || d===6) return 'review';
+  if(d===3) return 'new+review';
+  return 'new';
+}
+
+async function loadReviewPool(key){
+  try{
+    const snap = await getDoc(doc(db, COL_REVIEWPOOL, key));
+    if(snap.exists()) return snap.data().words || {};
+  }catch(e){ console.error('pool load failed', e); }
+  return {};
+}
+async function saveReviewPool(key, words){
+  await setDoc(doc(db, COL_REVIEWPOOL, key), { words, updatedAt: Date.now() });
+}
+
+// Update the pool after any test (new-unit or review) using per-word right/wrong results
+async function updatePoolAfterResults(key, wordResults){
+  const pool = await loadReviewPool(key);
+  for(const r of wordResults){
+    if(r.correct){
+      if(pool[r.en]){
+        pool[r.en].streak = (pool[r.en].streak||0) + 1;
+        if(pool[r.en].streak >= MASTERY_STREAK){
+          delete pool[r.en]; // graduated, remove from pool
+        }
+      }
+      // if word wasn't in pool and answered correctly, nothing to do
+    } else {
+      pool[r.en] = {
+        ko: r.ko, unit: r.unit,
+        wrongCount: (pool[r.en] ? pool[r.en].wrongCount : 0) + 1,
+        streak: 0
+      };
+    }
+  }
+  await saveReviewPool(key, pool);
+  return pool;
+}
+
+const main = document.getElementById('app');
+const ROUTES = {};
+function render(route, params){
+  main.innerHTML = '';
+  ROUTES[route](main, el, params||{});
+  window.scrollTo(0,0);
+}
+
+// ============== HOME ==============
+ROUTES.home = (main) => {
+  main.appendChild(el(`
+    <div style="text-align:center; margin-bottom:20px;">
+      <div style="font-size:13px; letter-spacing:2px; color:#0d281c; font-weight:700;">PIC · ROOT · NUANCE</div>
+      <h1 style="margin-top:4px;">그루앙스 3000 단어 시험</h1>
+      <p class="muted">루트북 UNIT 001~082</p>
+    </div>
+  `));
+  const studentBtn = el(`<div class="homebtn gold">학생 — 오늘의 시험 보기</div>`);
+  studentBtn.onclick = () => render('studentLogin');
+  main.appendChild(studentBtn);
+  const teacherBtn = el(`<div class="homebtn">선생님 대시보드</div>`);
+  teacherBtn.onclick = () => render('teacherPin');
+  main.appendChild(teacherBtn);
+};
+
+// ============== STUDENT LOGIN ==============
+ROUTES.studentLogin = (main) => {
+  main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
+  main.querySelector('#back').onclick = () => render('home');
+  main.appendChild(el(`<h1>학생 확인</h1><p class="muted">반, 번호, 이름을 입력해주세요.</p>`));
+  const card = el(`
+    <div class="card">
+      <label>반</label>
+      <input type="text" id="inCls" placeholder="예: 3반" inputmode="text">
+      <label>번호</label>
+      <input type="text" id="inNum" placeholder="예: 12" inputmode="numeric">
+      <label>이름</label>
+      <input type="text" id="inName" placeholder="예: 김민준">
+      <button class="btn btn-primary" id="btnStart">시험 시작</button>
+    </div>
+  `);
+  main.appendChild(card);
+  main.querySelector('#btnStart').onclick = async () => {
+    const cls = main.querySelector('#inCls').value.trim();
+    const num = main.querySelector('#inNum').value.trim();
+    const name = main.querySelector('#inName').value.trim();
+    if(!cls || !num || !name){ showToast('반, 번호, 이름을 모두 입력해주세요'); return; }
+    student = { cls, num, name, key: studentKey(cls,num) };
+    await render('testGate');
+  };
+};
+
+// ============== TEST GATE (checks window / day) ==============
+ROUTES.testGate = async (main) => {
+  main.appendChild(el(`<div class="empty">확인 중...</div>`));
+  const now = new Date();
+  const dayType = getDayType(now); // 'new' | 'new+review' | 'review'
+
+  if(!isWithinTestWindow()){
+    main.innerHTML = '';
+    main.appendChild(el(`<div class="card"><h2>아직 시험 시간이 아닙니다</h2><p class="muted">오늘 시험은 오후 ${SETTINGS.openHour}시부터 밤 12시까지 볼 수 있어요.</p></div>`));
+    main.appendChild(backHomeBtn());
+    return;
+  }
+
+  if(dayType === 'review'){
+    // Saturday/Sunday: review-only day, no new units
+    const already = await hasAttemptedToday(student.key, todayStr(now), 'review');
+    const pool = await loadReviewPool(student.key);
+    const poolWords = Object.keys(pool);
+    main.innerHTML = '';
+    if(already){
+      main.appendChild(el(`<div class="card"><h2>오늘 복습 시험은 이미 완료했습니다</h2><p class="muted">${student.cls} ${student.num}번 ${student.name}님, 수고하셨어요.</p></div>`));
+      main.appendChild(backHomeBtn());
+      return;
+    }
+    if(poolWords.length === 0){
+      main.appendChild(el(`<div class="card"><h2>복습할 단어가 없습니다!</h2><p class="muted">지금까지 틀린 단어가 없거나 이미 다 마스터했어요. 잘하고 있어요 👍</p></div>`));
+      main.appendChild(backHomeBtn());
+      return;
+    }
+    main.appendChild(el(`
+      <div class="card">
+        <h2>복습 시험 (주말)</h2>
+        <p class="muted">${student.cls} ${student.num}번 ${student.name}님, 그동안 틀렸던 단어 ${poolWords.length}개를 다시 풀어봅니다.</p>
+        <p class="muted">문제당 제한시간: ${SETTINGS.secondsPerQuestion}초 · 5지선다 · 2번 연속 맞히면 복습 목록에서 빠집니다</p>
+      </div>
+    `));
+    const startBtn = el(`<div class="homebtn gold">복습 시험 시작</div>`);
+    startBtn.onclick = () => startReviewTest(pool, {thenGoHome:true});
+    main.appendChild(startBtn);
+    main.appendChild(backHomeBtn());
+    return;
+  }
+
+  // dayType === 'new' or 'new+review'
+  const info = computeDayInfo(now);
+  if(info.notStarted){
+    main.innerHTML = '';
+    main.appendChild(el(`<div class="card"><h2>아직 시작 전입니다</h2><p class="muted">시험 시작일이 아직 되지 않았어요. 선생님께 문의해주세요.</p></div>`));
+    main.appendChild(backHomeBtn());
+    return;
+  }
+  const range = unitRangeForDayIndex(info.idx);
+  if(!range){
+    main.innerHTML = '';
+    main.appendChild(el(`<div class="card"><h2>전체 과정을 완료했습니다</h2><p class="muted">루트북 전체 82유닛 시험이 끝났습니다. 수고하셨습니다!</p></div>`));
+    main.appendChild(backHomeBtn());
+    return;
+  }
+  const today = todayStr(now);
+  const already = await hasAttemptedToday(student.key, today, 'new');
+  main.innerHTML = '';
+  if(already){
+    main.appendChild(el(`<div class="card"><h2>오늘 시험은 이미 완료했습니다</h2><p class="muted">${student.cls} ${student.num}번 ${student.name}님, 내일 다시 시도해주세요.</p></div>`));
+    main.appendChild(backHomeBtn());
+    return;
+  }
+  main.appendChild(el(`
+    <div class="card">
+      <h2>UNIT ${pad(range.start,3)} ~ UNIT ${pad(range.end,3)}</h2>
+      <p class="muted">${student.cls} ${student.num}번 ${student.name}님, 준비되면 시작하세요.</p>
+      <p class="muted">문제당 제한시간: ${SETTINGS.secondsPerQuestion}초 · 5지선다</p>
+      ${dayType==='new+review' ? '<p class="muted">오늘은 수요일 — 시험 후 이번 주 복습도 이어집니다.</p>' : ''}
+    </div>
+  `));
+  const startBtn = el(`<div class="homebtn gold">시험 시작</div>`);
+  startBtn.onclick = () => startTest(range, dayType);
+  main.appendChild(startBtn);
+  main.appendChild(backHomeBtn());
+};
+
+function backHomeBtn(){
+  const b = el(`<div class="homebtn" style="margin-top:8px;">처음으로</div>`);
+  b.onclick = () => render('home');
+  return b;
+}
+
+function attemptDocId(key, dateStr, mode){
+  return key + '_' + dateStr + (mode==='review' ? '_review' : '');
+}
+
+async function hasAttemptedToday(key, dateStr, mode){
+  try{
+    const snap = await getDoc(doc(db, COL_ATTEMPTS, attemptDocId(key, dateStr, mode)));
+    return snap.exists();
+  }catch(e){ console.error(e); return false; }
+}
+
+// ============== TEST ENGINE ==============
+let testState = null;
+
+function buildAllMeaningPool(){
+  const pool = [];
+  for(const u of UNITS){
+    for(const w of u.words){
+      pool.push({en: w.en, ko: w.ko, unit: u.n});
+    }
+  }
+  return pool;
+}
+const ALL_WORDS_POOL = buildAllMeaningPool();
+
+async function getRecentMeanings(key, days){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = todayStr(cutoff);
+  const recent = new Set();
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), where('studentKey','==',key), where('date','>=',cutoffStr));
+    const snap = await getDocs(q);
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      (data.choicesShown || []).forEach(m => recent.add(m));
+    });
+  }catch(e){ console.error('recent meanings fetch failed', e); }
+  return recent;
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function buildQuestionsFromWords(words, recentMeanings){
+  const usedThisSession = new Set();
+  const questions = [];
+  for(const w of words){
+    usedThisSession.add(w.ko);
+    let candidates = ALL_WORDS_POOL.filter(x => x.ko !== w.ko && !recentMeanings.has(x.ko) && !usedThisSession.has(x.ko));
+    if(candidates.length < 4){
+      candidates = ALL_WORDS_POOL.filter(x => x.ko !== w.ko && !usedThisSession.has(x.ko));
+    }
+    const distractors = shuffle(candidates).slice(0,4).map(x=>x.ko);
+    distractors.forEach(d => usedThisSession.add(d));
+    const choices = shuffle([w.ko, ...distractors]);
+    questions.push({ en: w.en, correct: w.ko, choices, unit: w.unit });
+  }
+  return questions;
+}
+
+async function startTest(range, dayType){
+  main.innerHTML = '';
+  main.appendChild(el(`<div class="empty">문제 준비 중...</div>`));
+
+  const words = [];
+  for(const u of UNITS){
+    if(u.n >= range.start && u.n <= range.end){
+      for(const w of u.words) words.push({en:w.en, ko:w.ko, unit:u.n});
+    }
+  }
+  const recentMeanings = await getRecentMeanings(student.key, 7);
+  const questions = buildQuestionsFromWords(words, recentMeanings);
+
+  testState = {
+    mode: 'new', dayType, range, questions, idx: 0, correctCount: 0,
+    unitStats: {}, wordResults: [], choicesShownFlat: [],
+    startedAt: Date.now(), timerHandle: null
+  };
+  for(let u=range.start; u<=range.end; u++) testState.unitStats[u] = {correct:0, total:0};
+
+  renderQuestion();
+}
+
+async function startReviewTest(pool, opts){
+  main.innerHTML = '';
+  main.appendChild(el(`<div class="empty">복습 문제 준비 중...</div>`));
+  const words = Object.keys(pool).map(en => ({en, ko: pool[en].ko, unit: pool[en].unit}));
+  const recentMeanings = await getRecentMeanings(student.key, 7);
+  const questions = buildQuestionsFromWords(shuffle(words), recentMeanings);
+
+  testState = {
+    mode: 'review', thenGoHome: !!(opts && opts.thenGoHome),
+    questions, idx: 0, correctCount: 0,
+    unitStats: {}, wordResults: [], choicesShownFlat: [],
+    startedAt: Date.now(), timerHandle: null
+  };
+  questions.forEach(q => { if(!testState.unitStats[q.unit]) testState.unitStats[q.unit] = {correct:0,total:0}; });
+
+  renderQuestion();
+}
+
+function renderQuestion(){
+  clearInterval(testState.timerHandle);
+  main.innerHTML = '';
+  const q = testState.questions[testState.idx];
+  const total = testState.questions.length;
+  const modeLabel = testState.mode === 'review' ? '복습' : `UNIT ${pad(q.unit,3)}`;
+  main.appendChild(el(`<div class="qprogress">문제 ${testState.idx+1} / ${total} · ${modeLabel}</div>`));
+  main.appendChild(el(`<div class="timerbar-wrap"><div class="timerbar" id="tbar" style="width:100%;"></div></div>`));
+  main.appendChild(el(`<div class="qword">${q.en}</div>`));
+  const choiceWrap = el(`<div></div>`);
+  q.choices.forEach(choice => {
+    const b = el(`<button class="choice-btn">${choice}</button>`);
+    b.onclick = () => answerQuestion(choice);
+    choiceWrap.appendChild(b);
+  });
+  main.appendChild(choiceWrap);
+
+  const totalMs = SETTINGS.secondsPerQuestion * 1000;
+  const startTime = Date.now();
+  testState.timerHandle = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const pct = Math.max(0, 100 - (elapsed/totalMs)*100);
+    const bar = document.getElementById('tbar');
+    if(bar) bar.style.width = pct + '%';
+    if(elapsed >= totalMs){
+      clearInterval(testState.timerHandle);
+      answerQuestion(null);
+    }
+  }, 100);
+}
+
+function answerQuestion(chosen){
+  clearInterval(testState.timerHandle);
+  const q = testState.questions[testState.idx];
+  const correct = chosen === q.correct;
+  testState.unitStats[q.unit].total++;
+  if(correct){ testState.correctCount++; testState.unitStats[q.unit].correct++; }
+  testState.choicesShownFlat.push(...q.choices);
+  testState.wordResults.push({ en: q.en, ko: q.correct, unit: q.unit, correct });
+
+  const buttons = main.querySelectorAll('.choice-btn');
+  buttons.forEach(b => {
+    b.disabled = true;
+    if(b.textContent === q.correct) b.classList.add('correct');
+    else if(b.textContent === chosen) b.classList.add('wrong');
+  });
+
+  setTimeout(() => {
+    testState.idx++;
+    if(testState.idx >= testState.questions.length) finishTest();
+    else renderQuestion();
+  }, 700);
+}
+
+function scoreCard(title, score, total){
+  const pct = Math.round(100*score/total);
+  return el(`
+    <div class="card final-score">
+      <div class="muted">${title}</div>
+      <div class="num">${score} / ${total}</div>
+      <div class="muted">정답률 ${pct}%</div>
+    </div>
+  `);
+}
+
+function unitDetailCard(unitStats){
+  const card = el(`<div class="card"></div>`);
+  Object.keys(unitStats).sort((a,b)=>a-b).forEach(u=>{
+    const st = unitStats[u];
+    const p = st.total ? Math.round(100*st.correct/st.total) : 0;
+    card.appendChild(el(`
+      <div class="barwrap">
+        <div class="lbl">U${pad(u,3)}</div>
+        <div class="track"><div style="width:${p}%; background:${p<70?'#b3352c':'#2B7A2E'}"></div></div>
+        <div class="val">${st.correct}/${st.total}</div>
+      </div>
+    `));
+  });
+  return card;
+}
+
+async function finishTest(){
+  main.innerHTML = '';
+  main.appendChild(el(`<div class="empty">저장 중...</div>`));
+  const total = testState.questions.length;
+  const score = testState.correctCount;
+  const mode = testState.mode;
+  const today = todayStr();
+
+  const record = {
+    studentKey: student.key, cls: student.cls, num: student.num, name: student.name,
+    date: today, mode,
+    unitStart: mode==='new' ? testState.range.start : null,
+    unitEnd: mode==='new' ? testState.range.end : null,
+    score, total, unitStats: testState.unitStats,
+    wordResults: testState.wordResults,
+    choicesShown: Array.from(new Set(testState.choicesShownFlat)),
+    createdAt: Date.now()
+  };
+  try{
+    const id = attemptDocId(student.key, today, mode);
+    await setDoc(doc(db, COL_ATTEMPTS, id), record);
+  }catch(e){ console.error('save failed', e); showToast('저장 중 오류가 발생했습니다'); }
+
+  let updatedPool = {};
+  try{
+    updatedPool = await updatePoolAfterResults(student.key, testState.wordResults);
+  }catch(e){ console.error('pool update failed', e); }
+
+  main.innerHTML = '';
+  const title = mode==='new'
+    ? `UNIT ${pad(testState.range.start,3)}~${pad(testState.range.end,3)} 결과`
+    : '복습 시험 결과';
+  main.appendChild(scoreCard(title, score, total));
+  main.appendChild(unitDetailCard(testState.unitStats));
+
+  // Wednesday: after the new-unit test, chain into a review round if pool has words
+  if(mode==='new' && testState.dayType==='new+review'){
+    const poolWords = Object.keys(updatedPool);
+    if(poolWords.length > 0){
+      const cont = el(`<div class="homebtn gold">이어서 복습 시험 보기 (${poolWords.length}개)</div>`);
+      cont.onclick = () => startReviewTest(updatedPool, {thenGoHome:true});
+      main.appendChild(cont);
+    }
+  }
+  main.appendChild(backHomeBtn());
+}
+
+// ============== TEACHER PIN ==============
+ROUTES.teacherPin = (main) => {
+  main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
+  main.querySelector('#back').onclick = () => render('home');
+  main.appendChild(el(`<h1>선생님 대시보드</h1><p class="muted">PIN을 입력해주세요. (기본값 1234)</p>`));
+  const card = el(`
+    <div class="card">
+      <input type="password" id="pinInput" placeholder="PIN 입력" inputmode="numeric">
+      <button class="btn btn-primary" id="btnGo">입장</button>
+    </div>
+  `);
+  main.appendChild(card);
+  main.querySelector('#btnGo').onclick = () => {
+    const v = main.querySelector('#pinInput').value;
+    if(v === SETTINGS.pin) render('teacherDashboard', {tab:'overview'});
+    else showToast('PIN이 올바르지 않습니다');
+  };
+};
+
+// ============== TEACHER DASHBOARD ==============
+ROUTES.teacherDashboard = (main, elFn, {tab}) => {
+  tab = tab || 'overview';
+  main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
+  main.querySelector('#back').onclick = () => render('home');
+  main.appendChild(el(`<h1>선생님 대시보드</h1>`));
+  const tabs = el(`
+    <div class="tabs">
+      <div class="tab" data-t="overview">성적 현황</div>
+      <div class="tab" data-t="settings">시험 설정</div>
+    </div>
+  `);
+  tabs.querySelectorAll('.tab').forEach(t=>{
+    if(t.dataset.t===tab) t.classList.add('active');
+    t.onclick = () => render('teacherDashboard', {tab:t.dataset.t});
+  });
+  main.appendChild(tabs);
+  const body = el(`<div id="tabBody"></div>`);
+  main.appendChild(body);
+  if(tab==='overview') renderOverviewTab(body);
+  else renderSettingsTab(body);
+};
+
+async function renderOverviewTab(body){
+  body.appendChild(el(`<div class="empty">불러오는 중...</div>`));
+  let allAttempts = [];
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(500));
+    const snap = await getDocs(q);
+    snap.forEach(d => allAttempts.push(d.data()));
+  }catch(e){ console.error(e); }
+  body.innerHTML = '';
+
+  const info = computeDayInfo(new Date());
+  const range = info.idx!==null ? unitRangeForDayIndex(info.idx) : null;
+  body.appendChild(el(`<div class="card"><span class="muted">${range ? `오늘 시험 범위: UNIT ${pad(range.start,3)}~${pad(range.end,3)}` : '오늘은 시험일이 아닙니다'}</span></div>`));
+
+  if(allAttempts.length===0){
+    body.appendChild(el(`<div class="empty">아직 응시 기록이 없습니다.</div>`));
+    return;
+  }
+
+  // group by studentKey
+  const byStudent = {};
+  allAttempts.forEach(a=>{
+    if(!byStudent[a.studentKey]) byStudent[a.studentKey] = [];
+    byStudent[a.studentKey].push(a);
+  });
+  const today = todayStr();
+  const students = Object.keys(byStudent).map(key=>{
+    const attempts = byStudent[key].sort((a,b)=>a.date.localeCompare(b.date));
+    const last = attempts[attempts.length-1];
+    const avg = Math.round(100*attempts.reduce((s,a)=>s+a.score/a.total,0)/attempts.length);
+    const attemptedToday = attempts.some(a=>a.date===today);
+    return {key, cls:last.cls, num:last.num, name:last.name, attempts, avg, attemptedToday};
+  }).sort((a,b)=> a.cls.localeCompare(b.cls,'ko',{numeric:true}) || (Number(a.num)-Number(b.num)));
+
+  body.appendChild(el(`<p class="muted" style="margin-bottom:10px;">이름을 누르면 상세 기록을 볼 수 있습니다.</p>`));
+  for(const s of students){
+    let poolCount = 0;
+    try{
+      const poolSnap = await getDoc(doc(db, COL_REVIEWPOOL, s.key));
+      if(poolSnap.exists()) poolCount = Object.keys(poolSnap.data().words||{}).length;
+    }catch(e){ console.error(e); }
+
+    const card = el(`
+      <div class="card" style="cursor:pointer;">
+        <div class="statrow">
+          <span><b>${s.cls} ${s.num}번 ${s.name}</b></span>
+          <span>${s.attemptedToday ? '<span class="badge-ok">오늘 응시완료</span>' : '<span class="badge-warn">오늘 미응시</span>'}</span>
+        </div>
+        <div class="statrow"><span class="muted">누적 응시 ${s.attempts.length}회</span><span class="muted">평균 정답률 ${s.avg}%</span></div>
+        <div class="statrow"><span class="muted">복습 대기 단어</span><span class="${poolCount>0?'badge-warn':'badge-ok'}">${poolCount}개</span></div>
+        <div class="detailWrap" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
+      </div>
+    `);
+    card.onclick = () => {
+      const dw = card.querySelector('.detailWrap');
+      if(dw.style.display==='none'){
+        dw.style.display = 'block';
+        dw.innerHTML = '';
+        s.attempts.slice().reverse().forEach(a=>{
+          const pct = Math.round(100*a.score/a.total);
+          const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
+          const attemptEl = el(`<div style="margin-bottom:10px;"><div class="statrow"><span class="muted">${a.date} · ${modeLabel}</span><span class="${pct<70?'badge-warn':'badge-ok'}">${a.score}/${a.total} (${pct}%)</span></div></div>`);
+          const unitDetail = el(`<div></div>`);
+          Object.keys(a.unitStats||{}).sort((x,y)=>x-y).forEach(u=>{
+            const st = a.unitStats[u];
+            const p = st.total ? Math.round(100*st.correct/st.total) : 0;
+            unitDetail.appendChild(el(`
+              <div class="barwrap">
+                <div class="lbl">U${pad(u,3)}</div>
+                <div class="track"><div style="width:${p}%; background:${p<70?'#b3352c':'#2B7A2E'}"></div></div>
+                <div class="val">${st.correct}/${st.total}</div>
+              </div>
+            `));
+          });
+          attemptEl.appendChild(unitDetail);
+          dw.appendChild(attemptEl);
+        });
+      } else {
+        dw.style.display = 'none';
+      }
+    };
+    body.appendChild(card);
+  }
+}
+
+function renderSettingsTab(body){
+  body.appendChild(el(`
+    <div class="card">
+      <label>시험 시작일 (1일차, 평일만 카운트)</label>
+      <input type="text" id="setStart" placeholder="YYYY-MM-DD" value="${SETTINGS.startDate||''}">
+      <label>매일 시험 오픈 시각 (0~23시, 자정까지 응시 가능)</label>
+      <input type="text" id="setOpen" value="${SETTINGS.openHour}" inputmode="numeric">
+      <label>문제당 제한시간(초)</label>
+      <input type="text" id="setSec" value="${SETTINGS.secondsPerQuestion}" inputmode="numeric">
+      <label>선생님 PIN</label>
+      <input type="text" id="setPin" value="${SETTINGS.pin}" inputmode="numeric">
+      <button class="btn btn-primary" id="btnSave">저장</button>
+    </div>
+  `));
+  body.querySelector('#btnSave').onclick = async () => {
+    SETTINGS.startDate = body.querySelector('#setStart').value.trim();
+    SETTINGS.openHour = parseInt(body.querySelector('#setOpen').value.trim(),10) || 16;
+    SETTINGS.secondsPerQuestion = parseInt(body.querySelector('#setSec').value.trim(),10) || 10;
+    SETTINGS.pin = body.querySelector('#setPin').value.trim() || '1234';
+    await saveSettings();
+    showToast('저장되었습니다');
+  };
+}
+
+// ============== INIT ==============
+async function init(){
+  await loadSettings();
+  render('home');
+}
+init();
+</script>
+</body>
+</html>
