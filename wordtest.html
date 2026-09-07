@@ -659,9 +659,13 @@ async function renderOverviewTab(body){
 
   for(const s of students){
     let poolCount = 0;
+    let poolWords = {};
     try{
       const poolSnap = await getDoc(doc(db, COL_REVIEWPOOL, s.key));
-      if(poolSnap.exists()) poolCount = Object.keys(poolSnap.data().words||{}).length;
+      if(poolSnap.exists()){
+        poolWords = poolSnap.data().words || {};
+        poolCount = Object.keys(poolWords).length;
+      }
     }catch(e){ console.error(e); }
 
     const card = el(`
@@ -680,6 +684,25 @@ async function renderOverviewTab(body){
       if(dw.style.display==='none'){
         dw.style.display = 'block';
         dw.innerHTML = '';
+
+        // ===== 복습 대기 단어 목록 =====
+        const wordEntries = Object.keys(poolWords).map(en=>({en, ...poolWords[en]}));
+        if(wordEntries.length>0){
+          wordEntries.sort((a,b)=> (b.wrongCount||0)-(a.wrongCount||0) || (a.unit-b.unit));
+          const poolCard = el(`<div style="margin-bottom:14px; padding:10px; background:#fdf6e3; border-radius:8px;"><b style="font-size:13px;">복습 대기 단어 (${wordEntries.length}개)</b></div>`);
+          const list = el(`<div style="margin-top:6px;"></div>`);
+          wordEntries.forEach(w=>{
+            list.appendChild(el(`
+              <div class="statrow" style="padding:4px 0; border-bottom:1px solid #eee;">
+                <span><b>${w.en}</b> <span class="muted">(${w.ko||''})</span></span>
+                <span class="muted">U${pad(w.unit,3)} · 오답 ${w.wrongCount||0}회</span>
+              </div>
+            `));
+          });
+          poolCard.appendChild(list);
+          dw.appendChild(poolCard);
+        }
+
         s.attempts.slice().reverse().forEach(a=>{
           const pct = Math.round(100*a.score/a.total);
           const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
