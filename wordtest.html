@@ -235,30 +235,94 @@ ROUTES.home = (main) => {
 };
 
 // ============== STUDENT LOGIN ==============
-ROUTES.studentLogin = (main) => {
+ROUTES.studentLogin = async (main) => {
   main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
   main.querySelector('#back').onclick = () => render('home');
-  main.appendChild(el(`<h1>학생 확인</h1><p class="muted">반, 번호, 이름을 입력해주세요.</p>`));
-  const card = el(`
-    <div class="card">
-      <label>반</label>
-      <input type="text" id="inCls" placeholder="예: 3반" inputmode="text">
-      <label>번호</label>
-      <input type="text" id="inNum" placeholder="예: 12" inputmode="numeric">
-      <label>이름</label>
-      <input type="text" id="inName" placeholder="예: 김민준">
-      <button class="btn btn-primary" id="btnStart">시험 시작</button>
-    </div>
-  `);
-  main.appendChild(card);
-  main.querySelector('#btnStart').onclick = async () => {
-    const cls = main.querySelector('#inCls').value.trim();
-    const num = main.querySelector('#inNum').value.trim();
-    const name = main.querySelector('#inName').value.trim();
-    if(!cls || !num || !name){ showToast('반, 번호, 이름을 모두 입력해주세요'); return; }
-    student = { cls, num, name, key: studentKey(cls,num) };
-    await render('testGate');
-  };
+  main.appendChild(el(`<h1>학생 확인</h1><p class="muted">반과 번호를 순서대로 선택해주세요.</p>`));
+
+  let roster = [];
+  try{
+    const snap = await getDocs(collection(db, COL_ROSTER));
+    snap.forEach(d=>roster.push(d.data()));
+  }catch(e){ console.error(e); }
+
+  if(roster.length === 0){
+    // 명단이 없으면 기존 방식(직접 입력)으로 대체
+    const card = el(`
+      <div class="card">
+        <label>반</label>
+        <input type="text" id="inCls" placeholder="예: 3반" inputmode="text">
+        <label>번호</label>
+        <input type="text" id="inNum" placeholder="예: 12" inputmode="numeric">
+        <label>이름</label>
+        <input type="text" id="inName" placeholder="예: 김민준">
+        <button class="btn btn-primary" id="btnStart">시험 시작</button>
+      </div>
+    `);
+    main.appendChild(card);
+    main.querySelector('#btnStart').onclick = async () => {
+      const cls = main.querySelector('#inCls').value.trim();
+      const num = main.querySelector('#inNum').value.trim();
+      const name = main.querySelector('#inName').value.trim();
+      if(!cls || !num || !name){ showToast('반, 번호, 이름을 모두 입력해주세요'); return; }
+      student = { cls, num, name, key: studentKey(cls,num) };
+      await render('testGate');
+    };
+    return;
+  }
+
+  const classes = [...new Set(roster.map(r=>r.cls))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  const stepWrap = el(`<div></div>`);
+  main.appendChild(stepWrap);
+
+  function showClassStep(){
+    stepWrap.innerHTML = '';
+    stepWrap.appendChild(el(`<div class="card"><label>반 선택</label></div>`));
+    const grid = el(`<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px;"></div>`);
+    classes.forEach(cls=>{
+      const b = el(`<div class="homebtn" style="padding:14px 6px; font-size:14px;">${cls}</div>`);
+      b.onclick = () => showNumberStep(cls);
+      grid.appendChild(b);
+    });
+    stepWrap.appendChild(grid);
+  }
+
+  function showNumberStep(cls){
+    const inClass = roster.filter(r=>r.cls===cls).sort((a,b)=>Number(a.num)-Number(b.num));
+    stepWrap.innerHTML = '';
+    stepWrap.appendChild(el(`<div class="card"><label>${cls} — 번호 선택</label></div>`));
+    const grid = el(`<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:8px;"></div>`);
+    inClass.forEach(r=>{
+      const b = el(`<div class="homebtn" style="padding:14px 4px; font-size:14px;">${r.num}</div>`);
+      b.onclick = () => showConfirmStep(r);
+      grid.appendChild(b);
+    });
+    stepWrap.appendChild(grid);
+    const backBtn = el(`<div class="backlink" style="margin-top:10px;">← 반 다시 선택</div>`);
+    backBtn.onclick = () => showClassStep();
+    stepWrap.appendChild(backBtn);
+  }
+
+  function showConfirmStep(r){
+    stepWrap.innerHTML = '';
+    stepWrap.appendChild(el(`
+      <div class="card" style="text-align:center;">
+        <p class="muted">아래 학생이 맞나요?</p>
+        <h2 style="margin:6px 0;">${r.cls} ${r.num}번 ${r.name}</h2>
+      </div>
+    `));
+    const okBtn = el(`<div class="homebtn gold">맞아요, 시험 시작</div>`);
+    okBtn.onclick = async () => {
+      student = { cls: r.cls, num: r.num, name: r.name, key: studentKey(r.cls, r.num) };
+      await render('testGate');
+    };
+    stepWrap.appendChild(okBtn);
+    const backBtn = el(`<div class="backlink" style="margin-top:10px;">← 번호 다시 선택</div>`);
+    backBtn.onclick = () => showNumberStep(r.cls);
+    stepWrap.appendChild(backBtn);
+  }
+
+  showClassStep();
 };
 
 // ============== TEST GATE (checks window / day) ==============
