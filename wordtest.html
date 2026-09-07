@@ -53,10 +53,29 @@
   .final-score { text-align:center; padding: 20px 0; }
   .final-score .num { font-size: 48px; font-weight:900; color:#0d281c; }
   .row3 { display:flex; gap:8px; }
-  .row3 > * { flex:1; }
+  .row3 > * { flex:1; }#printReport{ display:none; }
+@media print{
+  body *{ visibility:hidden; }
+  #printReport, #printReport *{ visibility:visible; }
+  #printReport{ display:block; position:absolute; top:0; left:0; width:100%; padding:20px; }
+}
+.rpt-title{ text-align:center; font-size:20px; font-weight:900; color:#0a281c; margin-bottom:2px; }
+.rpt-sub{ text-align:center; font-size:12px; color:#9a7a30; margin-bottom:18px; }
+.rpt-meta{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:14px; border-bottom:2px solid #0a281c; padding-bottom:10px; }
+.rpt-summary{ display:flex; gap:14px; margin-bottom:16px; }
+.rpt-box{ flex:1; text-align:center; border:1px solid #ddd; border-radius:8px; padding:10px; }
+.rpt-box .n{ font-size:22px; font-weight:900; color:#0a281c; }
+.rpt-box .l{ font-size:11px; color:#777; }
+.rpt-section h4{ font-size:14px; border-left:4px solid #de9a1e; padding-left:8px; margin:16px 0 8px; }
+.rpt-table{ width:100%; border-collapse:collapse; font-size:12px; }
+.rpt-table th, .rpt-table td{ border:1px solid #ddd; padding:5px 7px; text-align:left; }
+.rpt-table th{ background:#f4f1e6; }
+.rpt-footer{ text-align:center; font-size:11px; color:#9a7a30; margin-top:24px; }
 </style>
 </head>
 <body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<div id="printReport"></div>
 <div id="app"><div class="empty">불러오는 중...</div></div>
 
 <script type="module">
@@ -144,6 +163,7 @@ function isWithinTestWindow(){
   return now.getHours() >= SETTINGS.openHour;
 }
 
+const COL_ROSTER = 'wordtest_roster';
 function studentKey(cls, num){ return (cls+'_'+num).replace(/\s+/g,''); }
 
 // day type: 'new' (mon/tue/thu/fri), 'new+review' (wed), 'review' (sat/sun)
@@ -664,6 +684,7 @@ ROUTES.teacherDashboard = (main, elFn, {tab}) => {
   const tabs = el(`
     <div class="tabs">
       <div class="tab" data-t="overview">성적 현황</div>
+      <div class="tab" data-t="roster">명단 관리</div>
       <div class="tab" data-t="settings">시험 설정</div>
     </div>
   `);
@@ -675,8 +696,66 @@ ROUTES.teacherDashboard = (main, elFn, {tab}) => {
   const body = el(`<div id="tabBody"></div>`);
   main.appendChild(body);
   if(tab==='overview') renderOverviewTab(body);
+  else if(tab==='roster') renderRosterTab(body);
   else renderSettingsTab(body);
 };
+
+function printStudentReport(s, poolWords){
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+
+  // 유닛별 정답률 전체 응시 기록에서 누적 집계
+  const unitAgg = {};
+  s.attempts.forEach(a=>{
+    Object.keys(a.unitStats||{}).forEach(u=>{
+      if(!unitAgg[u]) unitAgg[u] = {correct:0, total:0};
+      unitAgg[u].correct += a.unitStats[u].correct;
+      unitAgg[u].total += a.unitStats[u].total;
+    });
+  });
+  const unitRows = Object.keys(unitAgg).sort((a,b)=>a-b).map(u=>{
+    const st = unitAgg[u];
+    const p = st.total ? Math.round(100*st.correct/st.total) : 0;
+    return `<tr><td>UNIT ${pad(u,3)}</td><td>${st.correct}/${st.total}</td><td>${p}%</td></tr>`;
+  }).join('');
+
+  const wordEntries = Object.keys(poolWords||{}).map(en=>({en, ...poolWords[en]}))
+    .sort((a,b)=> (b.wrongCount||0)-(a.wrongCount||0));
+  const wordRows = wordEntries.map(w=>
+    `<tr><td>${w.en}</td><td>${w.ko||''}</td><td>UNIT ${pad(w.unit,3)}</td><td>${w.wrongCount||0}회</td></tr>`
+  ).join('') || `<tr><td colspan="4" style="text-align:center; color:#888;">현재 복습 대기 중인 단어가 없습니다 (모두 마스터했어요!)</td></tr>`;
+
+  const html = `
+    <div class="rpt-title">그루앙스 3000 학습 리포트</div>
+    <div class="rpt-sub">PIC · ROOT · NUANCE</div>
+    <div class="rpt-meta">
+      <span><b>${s.cls} ${s.num}번 ${s.name}</b> 학생</span>
+      <span>발급일: ${dateStr}</span>
+    </div>
+    <div class="rpt-summary">
+      <div class="rpt-box"><div class="n">${s.attempts.length}</div><div class="l">누적 응시 횟수</div></div>
+      <div class="rpt-box"><div class="n">${s.avg}%</div><div class="l">전체 평균 정답률</div></div>
+      <div class="rpt-box"><div class="n">${wordEntries.length}</div><div class="l">현재 복습 대기 단어</div></div>
+    </div>
+    <div class="rpt-section">
+      <h4>UNIT별 누적 정답률</h4>
+      <table class="rpt-table">
+        <thead><tr><th>UNIT</th><th>맞은/전체</th><th>정답률</th></tr></thead>
+        <tbody>${unitRows}</tbody>
+      </table>
+    </div>
+    <div class="rpt-section">
+      <h4>현재 복습이 필요한 단어 (아직 2회 연속 정답을 못 맞힌 단어)</h4>
+      <table class="rpt-table">
+        <thead><tr><th>단어</th><th>뜻</th><th>출제 유닛</th><th>오답 횟수</th></tr></thead>
+        <tbody>${wordRows}</tbody>
+      </table>
+    </div>
+    <div class="rpt-footer">그루앙스 3000 | 외우지 마세요. 이해하세요.</div>
+  `;
+  document.getElementById('printReport').innerHTML = html;
+  window.print();
+}
 
 async function renderOverviewTab(body){
   body.appendChild(el(`<div class="empty">불러오는 중...</div>`));
@@ -730,6 +809,9 @@ async function renderOverviewTab(body){
   chartCard.appendChild(el(`<p class="muted" style="margin-top:8px; margin-bottom:0; font-size:11px;">🟠 점은 오늘 미응시 학생입니다.</p>`));
   body.appendChild(chartCard);
 
+  const excelBtn = el(`<button class="btn" style="width:100%; margin-bottom:14px;">📊 전체 학생 엑셀(xlsx) 다운로드</button>`);
+  body.appendChild(excelBtn);
+
   for(const s of students){
     let poolCount = 0;
     let poolWords = {};
@@ -740,6 +822,8 @@ async function renderOverviewTab(body){
         poolCount = Object.keys(poolWords).length;
       }
     }catch(e){ console.error(e); }
+    s.poolCount = poolCount;
+    s.poolWords = poolWords;
 
     const card = el(`
       <div class="card" style="cursor:pointer;">
@@ -749,9 +833,14 @@ async function renderOverviewTab(body){
         </div>
         <div class="statrow"><span class="muted">누적 응시 ${s.attempts.length}회</span><span class="muted">평균 정답률 ${s.avg}%</span></div>
         <div class="statrow"><span class="muted">복습 대기 단어</span><span class="${poolCount>0?'badge-warn':'badge-ok'}">${poolCount}개</span></div>
+        <button class="btn" style="margin-top:8px; width:100%;" id="pdfBtn_${s.key}">📄 학부모용 PDF 리포트 발급</button>
         <div class="detailWrap" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
       </div>
     `);
+    card.querySelector(`#pdfBtn_${s.key}`).onclick = (e) => {
+      e.stopPropagation();
+      printStudentReport(s, poolWords);
+    };
     card.onclick = () => {
       const dw = card.querySelector('.detailWrap');
       if(dw.style.display==='none'){
@@ -801,6 +890,134 @@ async function renderOverviewTab(body){
     };
     body.appendChild(card);
   }
+
+  excelBtn.onclick = () => exportAllStudentsExcel(students);
+}
+
+function exportAllStudentsExcel(students){
+  const summaryRows = students.map(s=>({
+    '반': s.cls, '번호': s.num, '이름': s.name,
+    '누적 응시 횟수': s.attempts.length,
+    '평균 정답률(%)': s.avg,
+    '오늘 응시 여부': s.attemptedToday ? 'O' : 'X',
+    '복습 대기 단어 수': s.poolCount
+  }));
+
+  const reviewRows = [];
+  students.forEach(s=>{
+    Object.keys(s.poolWords||{}).forEach(en=>{
+      const w = s.poolWords[en];
+      reviewRows.push({
+        '반': s.cls, '번호': s.num, '이름': s.name,
+        '단어': en, '뜻': w.ko||'', '유닛': `UNIT ${pad(w.unit,3)}`,
+        '오답 횟수': w.wrongCount||0
+      });
+    });
+  });
+
+  const attemptRows = [];
+  students.forEach(s=>{
+    s.attempts.forEach(a=>{
+      attemptRows.push({
+        '반': s.cls, '번호': s.num, '이름': s.name,
+        '날짜': a.date,
+        '구분': a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`,
+        '맞은 개수': a.score, '전체 문항': a.total,
+        '정답률(%)': Math.round(100*a.score/a.total)
+      });
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), '학생요약');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(attemptRows), '응시기록전체');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reviewRows), '복습대기단어전체');
+
+  const today = new Date();
+  const ymd = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `그루앙스3000_학생성적_${ymd}.xlsx`);
+}
+
+async function renderRosterTab(body){
+  body.innerHTML = '';
+  body.appendChild(el(`
+    <div class="card">
+      <h3 style="margin-top:0;">전체 학생 명단 업로드</h3>
+      <p class="muted" style="font-size:12px;">엑셀(.xlsx) 또는 CSV 파일, 첫 행은 헤더로 취급합니다. 열 순서: <b>반, 번호, 이름</b> (헤더명은 무엇이든 상관없이 1~3번째 열을 그대로 읽습니다.)</p>
+      <input type="file" id="rosterFile" accept=".xlsx,.xls,.csv">
+      <button class="btn btn-primary" id="rosterUploadBtn" style="margin-top:8px;">업로드 & 저장</button>
+      <div id="rosterMsg" class="muted" style="margin-top:8px; font-size:12px;"></div>
+    </div>
+  `));
+
+  document.getElementById('rosterUploadBtn').onclick = async () => {
+    const f = document.getElementById('rosterFile').files[0];
+    const msg = document.getElementById('rosterMsg');
+    if(!f){ msg.textContent = '파일을 선택해주세요.'; return; }
+    msg.textContent = '처리 중...';
+    try{
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
+      const dataRows = rows.slice(1).filter(r => r && r.length>=3 && r[0] && r[1] && r[2]);
+      let count = 0;
+      for(const r of dataRows){
+        const cls = String(r[0]).trim();
+        const num = String(r[1]).trim();
+        const name = String(r[2]).trim();
+        const key = studentKey(cls, num);
+        await setDoc(doc(db, COL_ROSTER, key), {cls, num, name, key});
+        count++;
+      }
+      msg.textContent = `${count}명 저장 완료!`;
+      renderRosterTab(body);
+    }catch(e){
+      console.error(e);
+      msg.textContent = '오류가 발생했습니다: ' + e.message;
+    }
+  };
+
+  // ===== 현재 명단 기준 응시/미응시 =====
+  let rosterList = [];
+  try{
+    const snap = await getDocs(collection(db, COL_ROSTER));
+    snap.forEach(d=>rosterList.push(d.data()));
+  }catch(e){ console.error(e); }
+  rosterList.sort((a,b)=> a.cls.localeCompare(b.cls,'ko',{numeric:true}) || (Number(a.num)-Number(b.num)));
+
+  if(rosterList.length===0){
+    body.appendChild(el(`<div class="empty">등록된 명단이 없습니다. 위에서 파일을 업로드해주세요.</div>`));
+    return;
+  }
+
+  let allAttempts = [];
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(1000));
+    const snap = await getDocs(q);
+    snap.forEach(d => allAttempts.push(d.data()));
+  }catch(e){ console.error(e); }
+
+  const today = todayStr();
+  const attemptedTodaySet = new Set(allAttempts.filter(a=>a.date===today).map(a=>a.studentKey));
+  const everAttemptedSet = new Set(allAttempts.map(a=>a.studentKey));
+
+  const todayYes = rosterList.filter(s=>attemptedTodaySet.has(s.key));
+  const todayNo = rosterList.filter(s=>!attemptedTodaySet.has(s.key));
+  const neverAttempted = rosterList.filter(s=>!everAttemptedSet.has(s.key));
+
+  body.appendChild(el(`<h3>등록된 전체 명단: ${rosterList.length}명</h3>`));
+
+  const sec1 = el(`<div class="card"></div>`);
+  sec1.appendChild(el(`<h4 style="margin-top:0;">오늘(${today}) 응시 현황 — 응시 ${todayYes.length}명 / 미응시 ${todayNo.length}명</h4>`));
+  sec1.appendChild(el(`<div style="margin-bottom:6px;"><b style="color:#2B7A2E;">✅ 응시 (${todayYes.length}명)</b><br><span class="muted" style="font-size:13px;">${todayYes.map(s=>`${s.cls} ${s.num} ${s.name}`).join(', ') || '-'}</span></div>`));
+  sec1.appendChild(el(`<div><b style="color:#b3352c;">⛔ 미응시 (${todayNo.length}명)</b><br><span class="muted" style="font-size:13px;">${todayNo.map(s=>`${s.cls} ${s.num} ${s.name}`).join(', ') || '-'}</span></div>`));
+  body.appendChild(sec1);
+
+  const sec2 = el(`<div class="card"></div>`);
+  sec2.appendChild(el(`<h4 style="margin-top:0;">누적 기준 — 한 번도 응시한 적 없는 학생 (${neverAttempted.length}명)</h4>`));
+  sec2.appendChild(el(`<span class="muted" style="font-size:13px;">${neverAttempted.map(s=>`${s.cls} ${s.num} ${s.name}`).join(', ') || '없음 (전원 응시 경험 있음)'}</span>`));
+  body.appendChild(sec2);
 }
 
 function renderSettingsTab(body){
