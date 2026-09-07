@@ -262,6 +262,9 @@ ROUTES.testGate = async (main) => {
     main.innerHTML = '';
     if(already){
       main.appendChild(el(`<div class="card"><h2>오늘 복습 시험은 이미 완료했습니다</h2><p class="muted">${student.cls} ${student.num}번 ${student.name}님, 수고하셨어요.</p></div>`));
+      const myResultsBtn = el(`<div class="homebtn" style="margin-top:8px;">지난 시험 결과 보기</div>`);
+      myResultsBtn.onclick = () => render('myResults');
+      main.appendChild(myResultsBtn);
       main.appendChild(backHomeBtn());
       return;
     }
@@ -304,6 +307,9 @@ ROUTES.testGate = async (main) => {
   main.innerHTML = '';
   if(already){
     main.appendChild(el(`<div class="card"><h2>오늘 시험은 이미 완료했습니다</h2><p class="muted">${student.cls} ${student.num}번 ${student.name}님, 내일 다시 시도해주세요.</p></div>`));
+    const myResultsBtn = el(`<div class="homebtn" style="margin-top:8px;">지난 시험 결과 보기</div>`);
+    myResultsBtn.onclick = () => render('myResults');
+    main.appendChild(myResultsBtn);
     main.appendChild(backHomeBtn());
     return;
   }
@@ -318,6 +324,9 @@ ROUTES.testGate = async (main) => {
   const startBtn = el(`<div class="homebtn gold">시험 시작</div>`);
   startBtn.onclick = () => startTest(range, dayType);
   main.appendChild(startBtn);
+  const myResultsBtn = el(`<div class="homebtn" style="margin-top:8px;">지난 시험 결과 보기</div>`);
+  myResultsBtn.onclick = () => render('myResults');
+  main.appendChild(myResultsBtn);
   main.appendChild(backHomeBtn());
 };
 
@@ -473,7 +482,7 @@ function answerQuestion(chosen){
   testState.unitStats[q.unit].total++;
   if(correct){ testState.correctCount++; testState.unitStats[q.unit].correct++; }
   testState.choicesShownFlat.push(...q.choices);
-  testState.wordResults.push({ en: q.en, ko: q.correct, unit: q.unit, correct });
+  testState.wordResults.push({ en: q.en, ko: q.correct, chosen: chosen, unit: q.unit, correct });
 
   const buttons = main.querySelectorAll('.choice-btn');
   buttons.forEach(b => {
@@ -564,6 +573,70 @@ async function finishTest(){
 }
 
 // ============== TEACHER PIN ==============
+ROUTES.myResults = async (main) => {
+  main.innerHTML = '';
+  main.appendChild(el(`<a href="#" id="back" class="backlink">← 뒤로</a>`));
+  main.appendChild(el(`<h2>지난 시험 결과</h2>`));
+  const listWrap = el(`<div class="empty">불러오는 중...</div>`);
+  main.appendChild(listWrap);
+  main.querySelector('#back').onclick = (e) => { e.preventDefault(); render('testGate'); };
+
+  let attempts = [];
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), where('studentKey','==',student.key), orderBy('date','desc'), fslimit(30));
+    const snap = await getDocs(q);
+    snap.forEach(d => attempts.push(d.data()));
+  }catch(e){ console.error(e); }
+
+  listWrap.innerHTML = '';
+  if(attempts.length === 0){
+    listWrap.className = 'empty';
+    listWrap.textContent = '아직 응시 기록이 없습니다.';
+    return;
+  }
+  listWrap.className = '';
+  attempts.forEach(a=>{
+    const pct = Math.round(100*a.score/a.total);
+    const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
+    const card = el(`
+      <div class="card" style="cursor:pointer;">
+        <div class="statrow">
+          <span><b>${a.date}</b> · ${modeLabel}</span>
+          <span class="${pct<70?'badge-warn':'badge-ok'}">${a.score}/${a.total} (${pct}%)</span>
+        </div>
+        <div class="detailWrap" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
+      </div>
+    `);
+    card.onclick = () => {
+      const dw = card.querySelector('.detailWrap');
+      if(dw.style.display === 'none'){
+        dw.style.display = 'block';
+        dw.innerHTML = '';
+        if(!a.wordResults || a.wordResults.length===0 || a.wordResults[0].chosen===undefined){
+          dw.appendChild(el(`<p class="muted">이 응시 기록은 문제별 상세 답안이 저장되기 전 데이터라 다시 볼 수 없습니다.</p>`));
+        } else {
+          a.wordResults.forEach(r=>{
+            const chosenLabel = r.chosen===null ? '(시간초과 · 미응답)' : r.chosen;
+            dw.appendChild(el(`
+              <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f0f0f0;">
+                <div style="font-weight:700;">${r.en} <span class="muted" style="font-weight:400;">(U${pad(r.unit,3)})</span></div>
+                <div class="statrow" style="margin-top:2px;">
+                  <span class="muted">정답: ${r.ko}</span>
+                  <span class="${r.correct?'badge-ok':'badge-warn'}">${r.correct ? '정답' : '오답'}</span>
+                </div>
+                ${r.correct ? '' : `<div class="muted" style="font-size:12px;">내가 고른 답: ${chosenLabel}</div>`}
+              </div>
+            `));
+          });
+        }
+      } else {
+        dw.style.display = 'none';
+      }
+    };
+    listWrap.appendChild(card);
+  });
+};
+
 ROUTES.teacherPin = (main) => {
   main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
   main.querySelector('#back').onclick = () => render('home');
