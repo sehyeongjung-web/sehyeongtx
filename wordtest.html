@@ -680,7 +680,7 @@ async function renderOverviewTab(body){
   sortedByAvg.forEach(s=>{
     chartCard.appendChild(el(`
       <div class="barwrap">
-        <div class="lbl" style="width:78px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${s.name}</div>
+        <div class="lbl" style="width:110px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${s.name}(${s.cls})</div>
         <div class="track"><div style="width:${s.avg}%; background:${s.avg<70?'#b3352c':'#2B7A2E'}"></div></div>
         <div class="val">${s.avg}%${s.attemptedToday ? '' : ' <span style="color:#c99a2e;">•</span>'}</div>
       </div>
