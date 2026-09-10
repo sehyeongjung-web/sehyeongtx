@@ -31,6 +31,9 @@
   .choice-btn.correct { border-color: #2B7A2E; background: #e8f5e9; }
   .choice-btn.wrong { border-color: #b3352c; background: #fde8e6; }
   .choice-btn:disabled { opacity: 0.85; }
+  .feedback-banner { padding: 12px 14px; border-radius: 10px; font-size: 15px; font-weight: 700; margin: 10px 0; text-align:center; }
+  .feedback-banner.ok { background:#e8f5e9; color:#2B7A2E; }
+  .feedback-banner.no { background:#fde8e6; color:#b3352c; }
   .timerbar-wrap { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
   .timerbar { height: 100%; background: #e6c25a; transition: width 0.1s linear; }
   .qprogress { font-size: 13px; color: #888; margin-bottom: 8px; }
@@ -490,11 +493,17 @@ function answerQuestion(chosen){
     else if(b.textContent === chosen) b.classList.add('wrong');
   });
 
+  const banner = correct
+    ? el(`<div class="feedback-banner ok">✅ 정답입니다!</div>`)
+    : el(`<div class="feedback-banner no">❌ 오답 — 정답: <b>${q.en}</b> = ${q.correct}</div>`);
+  main.appendChild(banner);
+
+  const delay = correct ? 700 : 1800;
   setTimeout(() => {
     testState.idx++;
     if(testState.idx >= testState.questions.length) finishTest();
     else renderQuestion();
-  }, 700);
+  }, delay);
 }
 
 function scoreCard(title, score, total){
