@@ -517,6 +517,23 @@ function scoreCard(title, score, total){
   `);
 }
 
+function wrongWordsCard(wordResults){
+  const wrong = (wordResults||[]).filter(w=>!w.correct);
+  if(wrong.length === 0){
+    return el(`<div class="card"><div style="text-align:center; color:#2B7A2E; font-weight:700;">🎉 틀린 단어가 없습니다!</div></div>`);
+  }
+  const card = el(`<div class="card"><h3 style="margin-top:0; margin-bottom:10px;">틀린 단어 모아보기 (${wrong.length}개)</h3></div>`);
+  wrong.forEach(w => {
+    card.appendChild(el(`
+      <div style="border-bottom:1px solid #f0f0f0; padding:8px 0;">
+        <div class="statrow"><span style="font-weight:700;">${w.en}</span><span class="muted">UNIT ${pad(w.unit,3)}</span></div>
+        <div style="color:#555; font-size:14px;">${w.ko}</div>
+      </div>
+    `));
+  });
+  return card;
+}
+
 function unitDetailCard(unitStats){
   const card = el(`<div class="card"></div>`);
   Object.keys(unitStats).sort((a,b)=>a-b).forEach(u=>{
@@ -567,6 +584,7 @@ async function finishTest(){
     : '복습 시험 결과';
   main.appendChild(scoreCard(title, score, total));
   main.appendChild(unitDetailCard(testState.unitStats));
+  main.appendChild(wrongWordsCard(testState.wordResults));
 
   // Wednesday: after the new-unit test, chain into a review round if pool has words
   if(mode==='new' && testState.dayType==='new+review'){
