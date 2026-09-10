@@ -506,6 +506,66 @@ function answerQuestion(chosen){
   }, delay);
 }
 
+function attendanceTimelineEl(s){
+  const wrap = el(`<div style="margin-bottom:14px;"><h4 style="margin:0 0 6px; font-size:13px; color:#555;">응시 현황 (평일 기준)</h4><div style="overflow-x:auto; white-space:nowrap; padding:4px 0; border:1px solid #eee; border-radius:8px;"></div></div>`);
+  const strip = wrap.querySelector('div > div');
+  if(!SETTINGS.startDate){
+    strip.appendChild(el(`<div class="muted" style="padding:8px; display:inline-block;">시험 시작일이 설정되지 않았습니다.</div>`));
+    return wrap;
+  }
+  const byDate = {};
+  s.attempts.forEach(a=>{
+    if(!byDate[a.date] || a.mode==='new') byDate[a.date] = a;
+  });
+  const start = new Date(SETTINGS.startDate + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  let any = false;
+  while(cursor <= today){
+    const day = cursor.getDay();
+    if(day !== 0 && day !== 6){
+      any = true;
+      const dstr = todayStr(cursor);
+      const label = pad(cursor.getMonth()+1,2)+'/'+pad(cursor.getDate(),2);
+      const a = byDate[dstr];
+      if(a){
+        const pct = Math.round(100*a.score/a.total);
+        strip.appendChild(el(`
+          <div style="display:inline-block; width:44px; text-align:center; vertical-align:bottom; margin:0 3px;">
+            <div style="height:60px; display:flex; align-items:flex-end; justify-content:center;">
+              <div style="width:20px; height:${Math.max(4,pct*0.6)}px; background:${pct<70?'#b3352c':'#2B7A2E'}; border-radius:3px 3px 0 0;"></div>
+            </div>
+            <div style="font-size:10px; color:#333; margin-top:2px;">${pct}%</div>
+            <div style="font-size:9px; color:#999;">${label}</div>
+          </div>
+        `));
+      } else {
+        strip.appendChild(el(`
+          <div style="display:inline-block; width:44px; text-align:center; vertical-align:bottom; margin:0 3px;">
+            <div style="height:60px; display:flex; align-items:flex-end; justify-content:center;">
+              <div style="width:20px; height:6px; background:#ddd; border-radius:3px 3px 0 0;"></div>
+            </div>
+            <div style="font-size:10px; color:#c99a2e;">스킵</div>
+            <div style="font-size:9px; color:#999;">${label}</div>
+          </div>
+        `));
+      }
+    }
+    cursor.setDate(cursor.getDate()+1);
+  }
+  if(!any) strip.appendChild(el(`<div class="muted" style="padding:8px; display:inline-block;">표시할 날짜가 없습니다.</div>`));
+  return wrap;
+}
+
+function jumpToStudent(key){
+  const card = document.querySelector(`[data-student-key="${CSS.escape(key)}"]`);
+  if(!card){ showToast('학생 카드를 찾을 수 없습니다'); return; }
+  card.scrollIntoView({behavior:'smooth', block:'start'});
+  const dw = card.querySelector('.detailWrap');
+  if(dw && dw.style.display === 'none') card.click();
+}
+
 function scoreCard(title, score, total){
   const pct = Math.round(100*score/total);
   return el(`
@@ -705,13 +765,15 @@ async function renderOverviewTab(body){
   chartCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:10px;">학생별 평균 정답률 비교</h3>`));
   const sortedByAvg = [...students].sort((a,b)=> b.avg - a.avg);
   sortedByAvg.forEach(s=>{
-    chartCard.appendChild(el(`
-      <div class="barwrap">
+    const bar = el(`
+      <div class="barwrap" style="cursor:pointer;">
         <div class="lbl" style="width:78px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${s.name}(${s.cls})</div>
         <div class="track"><div style="width:${s.avg}%; background:${s.avg<70?'#b3352c':'#2B7A2E'}"></div></div>
         <div class="val">${s.avg}%${s.attemptedToday ? '' : ' <span style="color:#c99a2e;">•</span>'}</div>
       </div>
-    `));
+    `);
+    bar.onclick = () => jumpToStudent(s.key);
+    chartCard.appendChild(bar);
   });
   chartCard.appendChild(el(`<p class="muted" style="margin-top:8px; margin-bottom:0; font-size:11px;">🟠 점은 오늘 미응시 학생입니다.</p>`));
   body.appendChild(chartCard);
@@ -735,6 +797,7 @@ async function renderOverviewTab(body){
         <div class="detailWrap" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
       </div>
     `);
+    card.dataset.studentKey = s.key;
     card.querySelector('.printBtn').onclick = (ev) => {
       ev.stopPropagation();
       const printArea = document.getElementById('printArea');
@@ -765,6 +828,7 @@ async function renderOverviewTab(body){
       if(dw.style.display==='none'){
         dw.style.display = 'block';
         dw.innerHTML = '';
+        dw.appendChild(attendanceTimelineEl(s));
         s.attempts.slice().reverse().forEach(a=>{
           const pct = Math.round(100*a.score/a.total);
           const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
