@@ -102,7 +102,9 @@ let SETTINGS = {
   startDate: '2026-09-03',
   openHour: 16,
   secondsPerQuestion: 10,
-  pin: "1234"
+  pin: "1234",
+  jr3StartDate: '2026-09-14',
+  jr3UnitsPerDay: 6
 };
 let student = null;
 
@@ -125,9 +127,10 @@ async function saveSettings(){
   await setDoc(doc(db, COL_SETTINGS, SETTINGS_DOC), SETTINGS);
 }
 
-function computeDayInfo(dateObj){
-  if(!SETTINGS.startDate) return {idx:null, weekend:false, notStarted:true};
-  const start = new Date(SETTINGS.startDate + 'T00:00:00');
+function computeDayInfo(dateObj, track){
+  const startSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
+  if(!startSetting) return {idx:null, weekend:false, notStarted:true};
+  const start = new Date(startSetting + 'T00:00:00');
   const now = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
   const startMid = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   if(now < startMid) return {idx:null, weekend:false, notStarted:true};
@@ -143,11 +146,13 @@ function computeDayInfo(dateObj){
   return {idx, weekend:false, notStarted:false};
 }
 
-function unitRangeForDayIndex(idx){
-  const startUnit = idx*2 + 1;
-  const endUnit = idx*2 + 2;
-  if(startUnit > 82) return null;
-  return {start: startUnit, end: Math.min(endUnit,82)};
+function unitRangeForDayIndex(idx, track){
+  const perDay = track==='jr3' ? (SETTINGS.jr3UnitsPerDay||6) : 2;
+  const maxUnit = track==='jr3' ? 245 : 82;
+  const startUnit = idx*perDay + 1;
+  const endUnit = idx*perDay + perDay;
+  if(startUnit > maxUnit) return null;
+  return {start: startUnit, end: Math.min(endUnit,maxUnit)};
 }
 
 function isWithinTestWindow(){
@@ -155,11 +160,15 @@ function isWithinTestWindow(){
   return now.getHours() >= SETTINGS.openHour;
 }
 
-function studentKey(cls, num){ return (cls+'_'+num).replace(/\s+/g,''); }
+function studentKey(cls, num, track){ const base = (cls+'_'+num).replace(/\s+/g,''); return track==='jr3' ? ('jr3_'+base) : base; }
 
 // day type: 'new' (mon/tue/thu/fri), 'new+review' (wed), 'review' (sat/sun)
-function getDayType(dateObj){
+function getDayType(dateObj, track){
   const d = dateObj.getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+  if(track === 'jr3'){
+    if(d===0 || d===6) return 'review';
+    return 'new';
+  }
   if(d===0 || d===6) return 'review';
   if(d===3) return 'new+review';
   return 'new';
@@ -232,6 +241,11 @@ ROUTES.studentLogin = (main) => {
   main.appendChild(el(`<h1>학생 확인</h1><p class="muted">반, 번호, 이름을 입력해주세요.</p>`));
   const card = el(`
     <div class="card">
+      <label>수업 선택</label>
+      <select id="inTrack">
+        <option value="main">일반 (루트북, 월~금 2유닛)</option>
+        <option value="jr3">영양여고 3학년 특강 (루트북, 월~금 6유닛)</option>
+      </select>
       <label>반</label>
       <input type="text" id="inCls" placeholder="예: 3반" inputmode="text">
       <label>번호</label>
@@ -243,11 +257,12 @@ ROUTES.studentLogin = (main) => {
   `);
   main.appendChild(card);
   main.querySelector('#btnStart').onclick = async () => {
+    const track = main.querySelector('#inTrack').value;
     const cls = main.querySelector('#inCls').value.trim();
     const num = main.querySelector('#inNum').value.trim();
     const name = main.querySelector('#inName').value.trim();
     if(!cls || !num || !name){ showToast('반, 번호, 이름을 모두 입력해주세요'); return; }
-    student = { cls, num, name, key: studentKey(cls,num) };
+    student = { cls, num, name, track, key: studentKey(cls,num,track) };
     await render('testGate');
   };
 };
@@ -256,7 +271,8 @@ ROUTES.studentLogin = (main) => {
 ROUTES.testGate = async (main) => {
   main.appendChild(el(`<div class="empty">확인 중...</div>`));
   const now = new Date();
-  const dayType = getDayType(now); // 'new' | 'new+review' | 'review'
+  const track = student.track || 'main';
+  const dayType = getDayType(now, track); // 'new' | 'new+review' | 'review'
 
   if(!isWithinTestWindow()){
     main.innerHTML = '';
@@ -296,17 +312,17 @@ ROUTES.testGate = async (main) => {
   }
 
   // dayType === 'new' or 'new+review'
-  const info = computeDayInfo(now);
+  const info = computeDayInfo(now, track);
   if(info.notStarted){
     main.innerHTML = '';
     main.appendChild(el(`<div class="card"><h2>아직 시작 전입니다</h2><p class="muted">시험 시작일이 아직 되지 않았어요. 선생님께 문의해주세요.</p></div>`));
     main.appendChild(backHomeBtn());
     return;
   }
-  const range = unitRangeForDayIndex(info.idx);
+  const range = unitRangeForDayIndex(info.idx, track);
   if(!range){
     main.innerHTML = '';
-    main.appendChild(el(`<div class="card"><h2>전체 과정을 완료했습니다</h2><p class="muted">루트북 전체 82유닛 시험이 끝났습니다. 수고하셨습니다!</p></div>`));
+    main.appendChild(el(`<div class="card"><h2>전체 과정을 완료했습니다</h2><p class="muted">배정된 시험 범위를 모두 완료했습니다. 수고하셨습니다!</p></div>`));
     main.appendChild(backHomeBtn());
     return;
   }
@@ -507,9 +523,11 @@ function answerQuestion(chosen){
 }
 
 function attendanceTimelineEl(s){
-  const wrap = el(`<div style="margin-bottom:14px;"><h4 style="margin:0 0 6px; font-size:13px; color:#555;">응시 현황 (평일 기준)</h4><div style="overflow-x:auto; white-space:nowrap; padding:4px 0; border:1px solid #eee; border-radius:8px;"></div></div>`);
+  const track = s.track || 'main';
+  const startDateSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
+  const wrap = el(`<div style="margin-bottom:14px;"><h4 style="margin:0 0 6px; font-size:13px; color:#555;">응시 현황 (${track==='jr3' ? '월~금' : '평일'} 기준)</h4><div style="overflow-x:auto; white-space:nowrap; padding:4px 0; border:1px solid #eee; border-radius:8px;"></div></div>`);
   const strip = wrap.querySelector('div > div');
-  if(!SETTINGS.startDate){
+  if(!startDateSetting){
     strip.appendChild(el(`<div class="muted" style="padding:8px; display:inline-block;">시험 시작일이 설정되지 않았습니다.</div>`));
     return wrap;
   }
@@ -517,7 +535,7 @@ function attendanceTimelineEl(s){
   s.attempts.forEach(a=>{
     if(!byDate[a.date] || a.mode==='new') byDate[a.date] = a;
   });
-  const start = new Date(SETTINGS.startDate + 'T00:00:00');
+  const start = new Date(startDateSetting + 'T00:00:00');
   const today = new Date();
   today.setHours(0,0,0,0);
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
@@ -620,6 +638,7 @@ async function finishTest(){
 
   const record = {
     studentKey: student.key, cls: student.cls, num: student.num, name: student.name,
+    track: student.track || 'main',
     date: today, mode,
     unitStart: mode==='new' ? testState.range.start : null,
     unitEnd: mode==='new' ? testState.range.end : null,
@@ -710,14 +729,21 @@ async function renderOverviewTab(body){
   }catch(e){ console.error(e); }
   body.innerHTML = '';
 
-  const info = computeDayInfo(new Date());
-  const range = info.idx!==null ? unitRangeForDayIndex(info.idx) : null;
-  body.appendChild(el(`<div class="card"><span class="muted">${range ? `오늘 시험 범위: UNIT ${pad(range.start,3)}~${pad(range.end,3)}` : '오늘은 시험일이 아닙니다'}</span></div>`));
+  const info = computeDayInfo(new Date(), 'main');
+  const range = info.idx!==null ? unitRangeForDayIndex(info.idx, 'main') : null;
+  const infoJr3 = computeDayInfo(new Date(), 'jr3');
+  const rangeJr3 = infoJr3.idx!==null ? unitRangeForDayIndex(infoJr3.idx, 'jr3') : null;
+  body.appendChild(el(`
+    <div class="card">
+      <div class="statrow"><span class="muted">일반 오늘 시험 범위</span><span>${range ? `UNIT ${pad(range.start,3)}~${pad(range.end,3)}` : '시험일 아님'}</span></div>
+      <div class="statrow"><span class="muted">3학년특강 오늘 시험 범위</span><span>${rangeJr3 ? `UNIT ${pad(rangeJr3.start,3)}~${pad(rangeJr3.end,3)}` : '시험일 아님'}</span></div>
+    </div>
+  `));
 
   const csvBtn = el(`<button class="btn btn-secondary" style="margin-bottom:12px;">📊 전체 학생 성적 CSV 다운로드 (엑셀에서 열기)</button>`);
   csvBtn.onclick = async () => {
     csvBtn.textContent = '준비 중...';
-    const rows = [['반','번호','이름','누적응시횟수','평균정답률(%)','복습대기단어수','최근응시일','오늘응시여부']];
+    const rows = [['수업구분','반','번호','이름','누적응시횟수','평균정답률(%)','복습대기단어수','최근응시일','오늘응시여부']];
     for(const s of students){
       let poolCount = 0;
       try{
@@ -725,7 +751,7 @@ async function renderOverviewTab(body){
         if(poolSnap.exists()) poolCount = Object.keys(poolSnap.data().words||{}).length;
       }catch(e){ console.error(e); }
       const lastDate = s.attempts[s.attempts.length-1].date;
-      rows.push([s.cls, s.num, s.name, s.attempts.length, s.avg, poolCount, lastDate, s.attemptedToday?'응시':'미응시']);
+      rows.push([s.track==='jr3'?'3학년특강':'일반', s.cls, s.num, s.name, s.attempts.length, s.avg, poolCount, lastDate, s.attemptedToday?'응시':'미응시']);
     }
     const csvText = '\uFEFF' + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
     const blob = new Blob([csvText], {type:'text/csv;charset=utf-8;'});
@@ -755,7 +781,7 @@ async function renderOverviewTab(body){
     const last = attempts[attempts.length-1];
     const avg = Math.round(100*attempts.reduce((s,a)=>s+a.score/a.total,0)/attempts.length);
     const attemptedToday = attempts.some(a=>a.date===today);
-    return {key, cls:last.cls, num:last.num, name:last.name, attempts, avg, attemptedToday};
+    return {key, cls:last.cls, num:last.num, name:last.name, track:last.track||'main', attempts, avg, attemptedToday};
   }).sort((a,b)=> a.cls.localeCompare(b.cls,'ko',{numeric:true}) || (Number(a.num)-Number(b.num)));
 
   body.appendChild(el(`<p class="muted" style="margin-bottom:10px;">이름을 누르면 상세 기록을 볼 수 있습니다.</p>`));
@@ -788,7 +814,7 @@ async function renderOverviewTab(body){
     const card = el(`
       <div class="card" style="cursor:pointer;">
         <div class="statrow">
-          <span><b>${s.cls} ${s.num}번 ${s.name}</b></span>
+          <span><b>${s.cls} ${s.num}번 ${s.name}</b>${s.track==='jr3' ? ' <span class="badge-warn" style="font-size:10px;">3학년특강</span>' : ''}</span>
           <span>${s.attemptedToday ? '<span class="badge-ok">오늘 응시완료</span>' : '<span class="badge-warn">오늘 미응시</span>'}</span>
         </div>
         <div class="statrow"><span class="muted">누적 응시 ${s.attempts.length}회</span><span class="muted">평균 정답률 ${s.avg}%</span></div>
@@ -879,11 +905,27 @@ function renderSettingsTab(body){
       <button class="btn btn-primary" id="btnSave">저장</button>
     </div>
   `));
+  body.appendChild(el(`
+    <div class="card">
+      <h3 style="margin-top:0;">영양여고 3학년 특강 설정</h3>
+      <label>3학년 특강 시작일 (월~금 진행)</label>
+      <input type="text" id="setJr3Start" placeholder="YYYY-MM-DD" value="${SETTINGS.jr3StartDate||''}">
+      <label>하루 시험 유닛 수</label>
+      <input type="text" id="setJr3Units" value="${SETTINGS.jr3UnitsPerDay||6}" inputmode="numeric">
+      <button class="btn btn-primary" id="btnSaveJr3">저장</button>
+    </div>
+  `));
   body.querySelector('#btnSave').onclick = async () => {
     SETTINGS.startDate = body.querySelector('#setStart').value.trim();
     SETTINGS.openHour = parseInt(body.querySelector('#setOpen').value.trim(),10) || 16;
     SETTINGS.secondsPerQuestion = parseInt(body.querySelector('#setSec').value.trim(),10) || 10;
     SETTINGS.pin = body.querySelector('#setPin').value.trim() || '1234';
+    await saveSettings();
+    showToast('저장되었습니다');
+  };
+  body.querySelector('#btnSaveJr3').onclick = async () => {
+    SETTINGS.jr3StartDate = body.querySelector('#setJr3Start').value.trim();
+    SETTINGS.jr3UnitsPerDay = parseInt(body.querySelector('#setJr3Units').value.trim(),10) || 6;
     await saveSettings();
     showToast('저장되었습니다');
   };
