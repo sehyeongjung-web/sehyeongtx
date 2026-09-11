@@ -73,7 +73,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit as fslimit
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, limit as fslimit
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -238,33 +238,70 @@ ROUTES.home = (main) => {
 ROUTES.studentLogin = (main) => {
   main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
   main.querySelector('#back').onclick = () => render('home');
-  main.appendChild(el(`<h1>학생 확인</h1><p class="muted">반, 번호, 이름을 입력해주세요.</p>`));
-  const card = el(`
-    <div class="card">
-      <label>수업 선택</label>
-      <select id="inTrack">
-        <option value="main">일반 (루트북, 월~금 2유닛)</option>
-        <option value="jr3">영양여고 3학년 특강 (루트북, 월~금 6유닛)</option>
-      </select>
-      <label>반</label>
-      <input type="text" id="inCls" placeholder="예: 3반" inputmode="text">
-      <label>번호</label>
-      <input type="text" id="inNum" placeholder="예: 12" inputmode="numeric">
-      <label>이름</label>
-      <input type="text" id="inName" placeholder="예: 김민준">
-      <button class="btn btn-primary" id="btnStart">시험 시작</button>
-    </div>
-  `);
-  main.appendChild(card);
-  main.querySelector('#btnStart').onclick = async () => {
-    const track = main.querySelector('#inTrack').value;
-    const cls = main.querySelector('#inCls').value.trim();
-    const num = main.querySelector('#inNum').value.trim();
-    const name = main.querySelector('#inName').value.trim();
-    if(!cls || !num || !name){ showToast('반, 번호, 이름을 모두 입력해주세요'); return; }
-    student = { cls, num, name, track, key: studentKey(cls,num,track) };
-    await render('testGate');
-  };
+  main.appendChild(el(`<h1>학생 확인</h1><p class="muted">아래에서 순서대로 눌러주세요. (직접 입력 없음 — 반 표기가 사람마다 달라 다른 사람으로 잡히는 문제를 막기 위함)</p>`));
+
+  const state = { track: null, grade: null, cls: null, num: null, name: '' };
+  const wrap = el(`<div id="loginWizard"></div>`);
+  main.appendChild(wrap);
+
+  function buttonGrid(options, onPick){
+    const grid = el(`<div style="display:flex; flex-wrap:wrap; gap:8px; margin:10px 0;"></div>`);
+    options.forEach(opt=>{
+      const label = typeof opt === 'object' ? opt.label : String(opt);
+      const value = typeof opt === 'object' ? opt.value : opt;
+      const b = el(`<button class="btn btn-secondary" style="flex:0 0 auto; padding:10px 16px; min-width:52px;">${label}</button>`);
+      b.onclick = () => onPick(value);
+      grid.appendChild(b);
+    });
+    return grid;
+  }
+
+  function step(){
+    wrap.innerHTML = '';
+    if(!state.track){
+      wrap.appendChild(el(`<div class="card"><b>1. 수업을 선택하세요</b></div>`));
+      wrap.appendChild(buttonGrid([
+        {label:'일반', value:'main'},
+        {label:'영양여고 3학년 특강', value:'jr3'}
+      ], v => { state.track = v; if(v==='jr3') state.grade = 3; step(); }));
+      return;
+    }
+    if(!state.grade){
+      wrap.appendChild(el(`<div class="card"><b>2. 학년을 선택하세요</b></div>`));
+      wrap.appendChild(buttonGrid([1,2,3].map(g=>({label:g+'학년', value:g})), v => { state.grade = v; step(); }));
+      return;
+    }
+    if(!state.cls){
+      wrap.appendChild(el(`<div class="card"><b>3. 반을 선택하세요</b></div>`));
+      wrap.appendChild(buttonGrid(Array.from({length:10},(_,i)=>i+1).map(c=>({label:c+'반', value:c})), v => { state.cls = v; step(); }));
+      return;
+    }
+    if(!state.num){
+      wrap.appendChild(el(`<div class="card"><b>4. 번호를 선택하세요</b></div>`));
+      wrap.appendChild(buttonGrid(Array.from({length:40},(_,i)=>i+1).map(n=>({label:n, value:n})), v => { state.num = v; step(); }));
+      return;
+    }
+    // final: name + confirm
+    wrap.appendChild(el(`
+      <div class="card">
+        <div class="statrow"><span class="muted">선택한 정보</span><span>${state.grade}학년 ${state.cls}반 ${state.num}번</span></div>
+        <button class="btn btn-secondary" id="btnRedo" style="margin-top:6px; padding:6px; font-size:13px;">다시 선택</button>
+        <label style="margin-top:12px;">이름</label>
+        <input type="text" id="inName" placeholder="예: 김민준" value="${state.name}">
+        <button class="btn btn-primary" id="btnStart">시험 시작</button>
+      </div>
+    `));
+    wrap.querySelector('#btnRedo').onclick = () => { state.track=null; state.grade=null; state.cls=null; state.num=null; step(); };
+    wrap.querySelector('#btnStart').onclick = async () => {
+      const name = wrap.querySelector('#inName').value.trim();
+      if(!name){ showToast('이름을 입력해주세요'); return; }
+      const cls = `${state.grade}학년 ${state.cls}반`;
+      const num = String(state.num);
+      student = { cls, num, name, track: state.track, key: studentKey(cls,num,state.track) };
+      await render('testGate');
+    };
+  }
+  step();
 };
 
 // ============== TEST GATE (checks window / day) ==============
@@ -705,6 +742,7 @@ ROUTES.teacherDashboard = (main, elFn, {tab}) => {
   const tabs = el(`
     <div class="tabs">
       <div class="tab" data-t="overview">성적 현황</div>
+      <div class="tab" data-t="students">학생 관리</div>
       <div class="tab" data-t="settings">시험 설정</div>
     </div>
   `);
@@ -716,6 +754,7 @@ ROUTES.teacherDashboard = (main, elFn, {tab}) => {
   const body = el(`<div id="tabBody"></div>`);
   main.appendChild(body);
   if(tab==='overview') renderOverviewTab(body);
+  else if(tab==='students') renderStudentMgmtTab(body);
   else renderSettingsTab(body);
 };
 
@@ -889,6 +928,134 @@ async function renderOverviewTab(body){
     };
     body.appendChild(card);
   }
+}
+
+async function renderStudentMgmtTab(body){
+  body.appendChild(el(`<div class="empty">불러오는 중...</div>`));
+  let allAttempts = [];
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(2000));
+    const snap = await getDocs(q);
+    snap.forEach(d => allAttempts.push(d.data()));
+  }catch(e){ console.error(e); }
+  body.innerHTML = '';
+
+  if(allAttempts.length===0){
+    body.appendChild(el(`<div class="empty">아직 응시 기록이 없습니다.</div>`));
+    return;
+  }
+
+  const byKey = {};
+  allAttempts.forEach(a=>{
+    if(!byKey[a.studentKey]) byKey[a.studentKey] = {key:a.studentKey, cls:a.cls, num:a.num, name:a.name, track:a.track||'main', count:0};
+    byKey[a.studentKey].count++;
+  });
+  const keyList = Object.values(byKey);
+
+  const byName = {};
+  keyList.forEach(s=>{
+    if(!byName[s.name]) byName[s.name] = [];
+    byName[s.name].push(s);
+  });
+  const dupNames = Object.keys(byName).filter(n => byName[n].length > 1);
+
+  body.appendChild(el(`<div class="card"><b>이름이 같은데 반/번호가 달라 다른 사람으로 잡힌 학생: ${dupNames.length}건</b><p class="muted" style="margin-bottom:0;">아래에서 진짜 반/번호를 골라 "이 정보로 합치기"를 누르면, 다른 기록들이 전부 이 학생 하나로 합쳐집니다. 합친 뒤에는 되돌릴 수 없으니 신중히 선택해주세요.</p></div>`));
+
+  if(dupNames.length===0){
+    body.appendChild(el(`<div class="card" style="text-align:center; color:#2B7A2E;">중복된 학생이 없습니다 👍</div>`));
+  }
+
+  dupNames.forEach(name=>{
+    const group = byName[name];
+    const card = el(`<div class="card"><h3 style="margin-top:0;">${name} (${group.length}건 발견)</h3><p class="muted" style="margin-top:-4px;">기존 기록 (참고용)</p></div>`);
+    group.forEach(s=>{
+      card.appendChild(el(`<div class="muted" style="font-size:13px; padding:3px 0;">· ${s.cls} ${s.num}번 · 응시 ${s.count}회 (key: ${s.key})</div>`));
+    });
+    card.appendChild(el(`<p style="margin:10px 0 4px;"><b>진짜 정보를 다시 골라주세요 (형식을 통일합니다)</b></p>`));
+    const pick = {grade:null, cls:null, num:null};
+    const pickWrap = el(`<div></div>`);
+    card.appendChild(pickWrap);
+
+    function renderPick(){
+      pickWrap.innerHTML = '';
+      if(!pick.grade){
+        pickWrap.appendChild(el(`<div class="muted" style="font-size:13px;">학년</div>`));
+        const g = el(`<div style="display:flex; gap:6px; flex-wrap:wrap; margin:6px 0;"></div>`);
+        [1,2,3].forEach(v=>{
+          const b = el(`<button class="btn btn-secondary" style="padding:6px 12px;">${v}학년</button>`);
+          b.onclick = () => { pick.grade = v; renderPick(); };
+          g.appendChild(b);
+        });
+        pickWrap.appendChild(g);
+        return;
+      }
+      if(!pick.cls){
+        pickWrap.appendChild(el(`<div class="muted" style="font-size:13px;">반</div>`));
+        const g = el(`<div style="display:flex; gap:6px; flex-wrap:wrap; margin:6px 0;"></div>`);
+        Array.from({length:10},(_,i)=>i+1).forEach(v=>{
+          const b = el(`<button class="btn btn-secondary" style="padding:6px 12px;">${v}반</button>`);
+          b.onclick = () => { pick.cls = v; renderPick(); };
+          g.appendChild(b);
+        });
+        pickWrap.appendChild(g);
+        return;
+      }
+      if(!pick.num){
+        pickWrap.appendChild(el(`<div class="muted" style="font-size:13px;">번호</div>`));
+        const g = el(`<div style="display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; max-height:140px; overflow-y:auto;"></div>`);
+        Array.from({length:40},(_,i)=>i+1).forEach(v=>{
+          const b = el(`<button class="btn btn-secondary" style="padding:6px 10px;">${v}</button>`);
+          b.onclick = () => { pick.num = v; renderPick(); };
+          g.appendChild(b);
+        });
+        pickWrap.appendChild(g);
+        return;
+      }
+      const finalCls = `${pick.grade}학년 ${pick.cls}반`;
+      const finalNum = String(pick.num);
+      pickWrap.appendChild(el(`<div class="statrow"><span class="muted">최종 확정</span><span><b>${finalCls} ${finalNum}번</b></span></div>`));
+      const redo = el(`<button class="btn btn-secondary" style="padding:6px; font-size:13px;">다시 선택</button>`);
+      redo.onclick = () => { pick.grade=null; pick.cls=null; pick.num=null; renderPick(); };
+      pickWrap.appendChild(redo);
+      const mergeBtn = el(`<button class="btn btn-primary" style="margin-top:10px; display:block;">✅ 이 정보로 전부 합치기</button>`);
+      mergeBtn.onclick = async () => {
+        mergeBtn.textContent = '합치는 중...';
+        mergeBtn.disabled = true;
+        try{
+          const canonicalKey = studentKey(finalCls, finalNum, group[0].track);
+          for(const other of group){
+            const q2 = query(collection(db, COL_ATTEMPTS), where('studentKey','==',other.key));
+            const snap2 = await getDocs(q2);
+            for(const docSnap of snap2.docs){
+              await updateDoc(docSnap.ref, { studentKey: canonicalKey, cls: finalCls, num: finalNum });
+            }
+            if(other.key !== canonicalKey){
+              try{
+                const otherPoolSnap = await getDoc(doc(db, COL_REVIEWPOOL, other.key));
+                if(otherPoolSnap.exists()){
+                  const otherWords = otherPoolSnap.data().words || {};
+                  const canonicalPoolSnap = await getDoc(doc(db, COL_REVIEWPOOL, canonicalKey));
+                  const canonicalWords = canonicalPoolSnap.exists() ? (canonicalPoolSnap.data().words||{}) : {};
+                  await saveReviewPool(canonicalKey, {...otherWords, ...canonicalWords});
+                  await deleteDoc(doc(db, COL_REVIEWPOOL, other.key));
+                }
+              }catch(e){ console.error(e); }
+            }
+          }
+          showToast(`${name} 학생의 기록을 합쳤습니다`);
+          render('teacherDashboard', {tab:'students'});
+        }catch(e){
+          console.error(e);
+          showToast('합치기 중 오류가 발생했습니다');
+          mergeBtn.textContent = '✅ 이 정보로 전부 합치기';
+          mergeBtn.disabled = false;
+        }
+      };
+      pickWrap.appendChild(mergeBtn);
+    }
+    renderPick();
+    body.appendChild(card);
+  });
 }
 
 function renderSettingsTab(body){
