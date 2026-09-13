@@ -834,7 +834,7 @@ async function renderOverviewTab(body){
   sortedByAvg.forEach(s=>{
     const bar = el(`
       <div class="barwrap" style="cursor:pointer;">
-        <div class="lbl" style="width:78px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${s.name}(${s.cls})</div>
+        <div class="lbl" style="width:78px; overflow:hidden; line-height:1.25; white-space:normal;"><div style="font-size:12px;">${s.name}</div><div style="font-size:9px; color:#888;">${s.cls}</div></div>
         <div class="track"><div style="width:${s.avg}%; background:${s.avg<70?'#b3352c':'#2B7A2E'}"></div></div>
         <div class="val">${s.avg}%${s.attemptedToday ? '' : ' <span style="color:#c99a2e;">•</span>'}</div>
       </div>
