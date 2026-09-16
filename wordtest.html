@@ -381,7 +381,7 @@ ROUTES.testGate = async (main) => {
   }
   main.appendChild(el(`
     <div class="card">
-      <h2>UNIT ${pad(range.start,3)} ~ UNIT ${pad(range.end,3)}</h2>
+      <h2>${info.idx+1}회차 (${today}) · UNIT ${pad(range.start,3)} ~ UNIT ${pad(range.end,3)}</h2>
       <p class="muted">${student.cls} ${student.num}번 ${student.name}님, 준비되면 시작하세요.</p>
       <p class="muted">문제당 제한시간: ${SETTINGS.secondsPerQuestion}초 · 5지선다</p>
       ${dayType==='new+review' ? '<p class="muted">오늘은 수요일 — 시험 후 이번 주 복습도 이어집니다.</p>' : ''}
@@ -782,8 +782,8 @@ async function renderOverviewTab(body){
   const rangeJr3 = infoJr3.idx!==null ? unitRangeForDayIndex(infoJr3.idx, 'jr3') : null;
   body.appendChild(el(`
     <div class="card">
-      <div class="statrow"><span class="muted">일반 오늘 시험 범위</span><span>${range ? `UNIT ${pad(range.start,3)}~${pad(range.end,3)}` : '시험일 아님'}</span></div>
-      <div class="statrow"><span class="muted">3학년특강 오늘 시험 범위</span><span>${rangeJr3 ? `UNIT ${pad(rangeJr3.start,3)}~${pad(rangeJr3.end,3)}` : '시험일 아님'}</span></div>
+      <div class="statrow"><span class="muted">일반 오늘(${todayStr()})</span><span>${range ? `${info.idx+1}회차 · UNIT ${pad(range.start,3)}~${pad(range.end,3)}` : '시험일 아님'}</span></div>
+      <div class="statrow"><span class="muted">3학년특강 오늘(${todayStr()})</span><span>${rangeJr3 ? `${infoJr3.idx+1}회차 · UNIT ${pad(rangeJr3.start,3)}~${pad(rangeJr3.end,3)}` : '시험일 아님'}</span></div>
     </div>
   `));
 
