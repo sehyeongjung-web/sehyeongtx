@@ -109,7 +109,7 @@ let SETTINGS = {
   openHour: 16,
   secondsPerQuestion: 10,
   pin: "1234",
-  jr3StartDate: '2026-09-14',
+  jr3StartDate: '',
   jr3UnitsPerDay: 6
 };
 let student = null;
@@ -1036,32 +1036,12 @@ async function renderOverviewTab(body){
     </div>
   `));
 
-  const csvBtn = el(`<button class="btn btn-secondary" style="margin-bottom:12px;">📊 전체 학생 성적 CSV 다운로드 (엑셀에서 열기)</button>`);
-  csvBtn.onclick = async () => {
-    csvBtn.textContent = '준비 중...';
-    const rows = [['수업구분','반','번호','이름','누적응시횟수','평균정답률(%)','복습대기단어수','최근응시일','오늘응시여부']];
-    for(const s of students){
-      const poolCount = poolCounts[s.key] || 0;
-      const lastDate = s.attempts[s.attempts.length-1].date;
-      rows.push([s.track==='jr3'?'3학년특강':'일반', s.cls, s.num, s.name, s.attempts.length, s.avg, poolCount, lastDate, s.attemptedToday?'응시':'미응시']);
-    }
-    const csvText = '\uFEFF' + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-    const blob = new Blob([csvText], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `그루앙스3000_성적_${todayStr()}.csv`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    csvBtn.textContent = '📊 전체 학생 성적 CSV 다운로드 (엑셀에서 열기)';
-  };
-  body.appendChild(csvBtn);
-
   if(allAttempts.length===0){
     body.appendChild(el(`<div class="empty">아직 응시 기록이 없습니다.</div>`));
     return;
   }
 
-  // group by studentKey
+  // ===== 학생 집계 =====
   const byStudent = {};
   allAttempts.forEach(a=>{
     if(!byStudent[a.studentKey]) byStudent[a.studentKey] = [];
@@ -1076,154 +1056,316 @@ async function renderOverviewTab(body){
     return {key, cls:last.cls, num:last.num, name:last.name, track:last.track||'main', attempts, avg, attemptedToday};
   }).sort((a,b)=> a.cls.localeCompare(b.cls,'ko',{numeric:true}) || (Number(a.num)-Number(b.num)));
 
-  body.appendChild(el(`<p class="muted" style="margin-bottom:10px;">이름을 누르면 상세 기록을 볼 수 있습니다.</p>`));
+  const allClasses = [...new Set(students.map(s=>s.cls))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
 
-  // ===== 학생별 비교 막대그래프 (평균 정답률 / 응시 횟수 전환) =====
-  const chartCard = el(`<div class="card"></div>`);
-  chartCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:10px;">학생별 비교</h3>`));
+  const F = { track:'all', cls:'all', q:'', showAll:false, sort:'avg' };
 
-  const maxAttempts = Math.max(...students.map(s=>s.attempts.length), 1);
-  const avgAttempts = students.reduce((t,s)=>t+s.attempts.length,0) / students.length;
-
-  const modeBar = el(`
-    <div style="display:flex; gap:6px; margin-bottom:12px;">
-      <button class="cmpBtn" data-m="avg" style="flex:1; padding:8px 4px; font-size:12px; font-weight:600; border:1px solid #ddd; border-radius:8px; cursor:pointer;">평균 정답률순</button>
-      <button class="cmpBtn" data-m="cnt" style="flex:1; padding:8px 4px; font-size:12px; font-weight:600; border:1px solid #ddd; border-radius:8px; cursor:pointer;">응시 횟수순</button>
+  // ===== 필터 =====
+  const filterCard = el(`
+    <div class="card" style="padding:12px;">
+      <div style="font-size:12px; color:#666; margin-bottom:6px;">수업 구분</div>
+      <div id="fTrack" style="display:flex; gap:6px; margin-bottom:12px;"></div>
+      <div style="font-size:12px; color:#666; margin-bottom:6px;">반</div>
+      <div id="fCls" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;"></div>
+      <input id="fQ" type="text" placeholder="이름으로 검색" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
     </div>
   `);
-  chartCard.appendChild(modeBar);
+  body.appendChild(filterCard);
 
-  const barBox = el(`<div></div>`);
-  chartCard.appendChild(barBox);
-  const legend = el(`<p class="muted" style="margin-top:8px; margin-bottom:0; font-size:11px;"></p>`);
-  chartCard.appendChild(legend);
-
-  function drawCompare(mode){
-    modeBar.querySelectorAll('.cmpBtn').forEach(b=>{
-      const on = b.dataset.m === mode;
+  function pills(host, opts, getCur, setCur, grow){
+    host.innerHTML = '';
+    opts.forEach(o=>{
+      const b = el(`<button style="${grow?'flex:1;':''} padding:8px 12px; font-size:12px; font-weight:600; border-radius:8px; cursor:pointer; white-space:nowrap;">${o.label}</button>`);
+      const on = getCur() === o.value;
       b.style.background = on ? '#0d281c' : '#f4f4f4';
       b.style.color = on ? '#fff' : '#666';
-      b.style.borderColor = on ? '#0d281c' : '#ddd';
+      b.style.border = '1px solid ' + (on ? '#0d281c' : '#ddd');
+      b.onclick = () => { setCur(o.value); F.showAll = false; redrawAll(); };
+      host.appendChild(b);
     });
-
-    const list = [...students].sort((a,b)=>
-      mode==='avg' ? (b.avg - a.avg) : (b.attempts.length - a.attempts.length)
-    );
-
-    barBox.innerHTML = '';
-    list.forEach(s=>{
-      const n = s.attempts.length;
-      const pctWidth = mode==='avg' ? s.avg : Math.round(100*n/maxAttempts);
-      const color = mode==='avg'
-        ? (s.avg < 70 ? '#b3352c' : '#2B7A2E')
-        : (n < avgAttempts ? '#c99a2e' : '#2B7A2E');
-      const valText = mode==='avg' ? `${s.avg}%` : `${n}회`;
-      const bar = el(`
-        <div class="barwrap" style="cursor:pointer;">
-          <div class="lbl" style="width:88px; overflow:hidden; line-height:1.25; white-space:normal;">
-            <div style="font-size:12px;">${s.name} <b style="color:${s.avg<70?'#b3352c':'#2B7A2E'};">${s.avg}%</b></div>
-            <div style="font-size:9px; color:#888;">${s.cls} · ${n}회</div>
-          </div>
-          <div class="track"><div style="width:${pctWidth}%; background:${color}"></div></div>
-          <div class="val" style="width:46px;">${valText}${s.attemptedToday ? '' : ' <span style="color:#c99a2e;">•</span>'}</div>
-        </div>
-      `);
-      bar.onclick = () => jumpToStudent(s.key);
-      barBox.appendChild(bar);
-    });
-
-    legend.innerHTML = mode==='avg'
-      ? '이름 옆 숫자는 평균 정답률입니다. 70% 미만은 빨간 막대로 표시됩니다. 🟠 점은 오늘 미응시 학생입니다.'
-      : `막대는 응시 횟수입니다 (최다 ${maxAttempts}회 기준). 평균(${avgAttempts.toFixed(1)}회)보다 적게 본 학생은 주황 막대입니다. 🟠 점은 오늘 미응시 학생입니다.`;
   }
 
-  modeBar.querySelectorAll('.cmpBtn').forEach(b=>{
-    b.onclick = () => drawCompare(b.dataset.m);
-  });
-  drawCompare('avg');
-  body.appendChild(chartCard);
+  const qInput = filterCard.querySelector('#fQ');
+  let qTimer = null;
+  qInput.oninput = () => {
+    clearTimeout(qTimer);
+    qTimer = setTimeout(()=>{ F.q = qInput.value.trim(); F.showAll = false; redrawAll(); }, 200);
+  };
 
-  for(const s of students){
-    const poolCount = poolCounts[s.key] || 0;
+  const zone = el(`<div></div>`);
+  body.appendChild(zone);
 
-    const card = el(`
-      <div class="card" style="cursor:pointer;">
-        <div class="statrow">
-          <span><b>${s.cls} ${s.num}번 ${s.name}</b>${s.track==='jr3' ? ' <span class="badge-warn" style="font-size:10px;">3학년특강</span>' : ''}</span>
-          <span>${s.attemptedToday ? '<span class="badge-ok">오늘 응시완료</span>' : '<span class="badge-warn">오늘 미응시</span>'}</span>
-        </div>
-        <div class="statrow"><span class="muted">누적 응시 ${s.attempts.length}회</span><span class="muted">평균 정답률 ${s.avg}%</span></div>
-        <div class="statrow"><span class="muted">복습 대기 단어</span><span class="${poolCount>0?'badge-warn':'badge-ok'}">${poolCount}개</span></div>
-        <button class="btn btn-secondary printBtn" style="margin-top:8px; padding:8px; font-size:13px;">🖨️ 이 학생 리포트 인쇄</button>
-        <div class="detailWrap" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
+  // ignoreCls=true 는 반끼리 비교할 때 쓴다. 반 선택과 이름 검색을 무시하고 수업 구분만 적용한다.
+  function applyFilter(list, ignoreCls){
+    return list.filter(s=>{
+      if(F.track !== 'all' && s.track !== F.track) return false;
+      if(ignoreCls) return true;
+      if(F.cls !== 'all' && s.cls !== F.cls) return false;
+      if(F.q && !s.name.includes(F.q)) return false;
+      return true;
+    });
+  }
+
+  function redrawAll(){
+    pills(filterCard.querySelector('#fTrack'),
+      [{label:'전체',value:'all'},{label:'일반',value:'main'},{label:'3학년특강',value:'jr3'}],
+      ()=>F.track, v=>F.track=v, true);
+    pills(filterCard.querySelector('#fCls'),
+      [{label:'전체',value:'all'}, ...allClasses.map(c=>({label:c, value:c}))],
+      ()=>F.cls, v=>F.cls=v, false);
+
+    zone.innerHTML = '';
+    const view = applyFilter(students, false);
+
+    if(view.length === 0){
+      zone.appendChild(el(`<div class="empty">조건에 맞는 학생이 없습니다.</div>`));
+      return;
+    }
+
+    // ---------- 오늘 미응시 명단 ----------
+    const absent = view.filter(s=>!s.attemptedToday);
+    const absCard = el(`<div class="card"></div>`);
+    absCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:8px;">오늘 미응시 <span style="color:${absent.length?'#b3352c':'#2B7A2E'};">${absent.length}명</span> <span class="muted" style="font-weight:400; font-size:12px;">/ ${view.length}명</span></h3>`));
+    if(absent.length === 0){
+      absCard.appendChild(el(`<p class="muted" style="margin:0; font-size:13px;">전원 응시했습니다.</p>`));
+    } else {
+      const chipBox = el(`<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>`);
+      absent.forEach(s=>{
+        const chip = el(`<span style="display:inline-block; padding:5px 10px; background:#fdf3f2; color:#b3352c; border:1px solid #e7c3bf; border-radius:14px; font-size:12px; cursor:pointer;">${s.cls} ${s.num}번 ${s.name}</span>`);
+        chip.onclick = () => jumpToStudent(s.key);
+        chipBox.appendChild(chip);
+      });
+      absCard.appendChild(chipBox);
+      const copyBtn = el(`<button class="btn btn-secondary" style="padding:8px; font-size:13px;">📋 명단 복사</button>`);
+      copyBtn.onclick = async () => {
+        const text = absent.map(s=>`${s.cls} ${s.num}번 ${s.name}`).join('\n');
+        try{
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = '✅ 복사했습니다';
+        }catch(e){
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+          document.body.appendChild(ta); ta.select();
+          try{ document.execCommand('copy'); copyBtn.textContent = '✅ 복사했습니다'; }
+          catch(e2){ copyBtn.textContent = '복사 실패 — 길게 눌러 선택해 주세요'; }
+          document.body.removeChild(ta);
+        }
+        setTimeout(()=>{ copyBtn.textContent = '📋 명단 복사'; }, 2000);
+      };
+      absCard.appendChild(copyBtn);
+    }
+    zone.appendChild(absCard);
+
+    // ---------- 반 평균 비교 ----------
+    const clsSource = applyFilter(students, true);
+    const byCls = {};
+    clsSource.forEach(s=>{
+      if(!byCls[s.cls]) byCls[s.cls] = [];
+      byCls[s.cls].push(s);
+    });
+    const clsRows = Object.keys(byCls).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true})).map(c=>{
+      const arr = byCls[c];
+      const avg = Math.round(arr.reduce((t,s)=>t+s.avg,0)/arr.length);
+      const doneToday = arr.filter(s=>s.attemptedToday).length;
+      const avgAtt = (arr.reduce((t,s)=>t+s.attempts.length,0)/arr.length).toFixed(1);
+      return {cls:c, avg, n:arr.length, doneToday, avgAtt};
+    }).sort((a,b)=> b.avg - a.avg);
+
+    if(clsRows.length >= 2){
+      const clsCard = el(`<div class="card"></div>`);
+      clsCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:10px;">반 평균 비교</h3>`));
+      clsRows.forEach(r=>{
+        const color = r.avg < 70 ? '#b3352c' : '#2B7A2E';
+        clsCard.appendChild(el(`
+          <div class="barwrap" style="align-items:flex-start;">
+            <div class="lbl" style="width:76px; line-height:1.3; white-space:normal;">
+              <div style="font-size:12px; color:#222;"><b>${r.cls}</b></div>
+              <div style="font-size:9px; color:#888;">${r.n}명 · 평균 ${r.avgAtt}회</div>
+            </div>
+            <div class="track" style="margin-top:3px;"><div style="width:${r.avg}%; background:${color}"></div></div>
+            <div class="val" style="width:70px; margin-top:1px; font-size:11px;">${r.avg}% · ${r.doneToday}/${r.n}</div>
+          </div>
+        `));
+      });
+      clsCard.appendChild(el(`<p class="muted" style="margin:8px 0 0; font-size:11px;">오른쪽 숫자는 반 평균 정답률과 오늘 응시 인원입니다. 반 필터와 무관하게 전체 반을 비교합니다.</p>`));
+      zone.appendChild(clsCard);
+    }
+
+    // ---------- 학생별 비교 그래프 ----------
+    const CHART_PAGE = 10;
+    const maxAttempts = Math.max(...view.map(s=>s.attempts.length), 1);
+    const avgAttempts = view.reduce((t,s)=>t+s.attempts.length,0) / view.length;
+
+    const chartCard = el(`<div class="card"></div>`);
+    chartCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:10px;">학생별 비교 <span class="muted" style="font-weight:400; font-size:12px;">${view.length}명</span></h3>`));
+    const modeBar = el(`<div style="display:flex; gap:6px; margin-bottom:12px;"></div>`);
+    chartCard.appendChild(modeBar);
+    const barBox = el(`<div></div>`);
+    chartCard.appendChild(barBox);
+    const moreWrap = el(`<div style="margin-top:8px;"></div>`);
+    chartCard.appendChild(moreWrap);
+    const legend = el(`<p class="muted" style="margin-top:8px; margin-bottom:0; font-size:11px;"></p>`);
+    chartCard.appendChild(legend);
+
+    function drawCompare(){
+      pills(modeBar,
+        [{label:'평균 정답률순',value:'avg'},{label:'응시 횟수순',value:'cnt'}],
+        ()=>F.sort, v=>{ F.sort = v; }, true);
+      // pills 는 redrawAll 을 부르므로 여기서는 직접 핸들러를 다시 건다
+      modeBar.querySelectorAll('button').forEach((b,i)=>{
+        const v = i===0 ? 'avg' : 'cnt';
+        b.onclick = () => { F.sort = v; drawCompare(); };
+      });
+
+      const mode = F.sort;
+      const sorted = [...view].sort((a,b)=>
+        mode==='avg' ? (b.avg - a.avg) : (b.attempts.length - a.attempts.length)
+      );
+      const shown = F.showAll ? sorted : sorted.slice(0, CHART_PAGE);
+
+      barBox.innerHTML = '';
+      shown.forEach(s=>{
+        const n = s.attempts.length;
+        const pctWidth = mode==='avg' ? s.avg : Math.round(100*n/maxAttempts);
+        const color = mode==='avg'
+          ? (s.avg < 70 ? '#b3352c' : '#2B7A2E')
+          : (n < avgAttempts ? '#c99a2e' : '#2B7A2E');
+        const valText = mode==='avg' ? `${s.avg}%` : `${n}회`;
+        const bar = el(`
+          <div class="barwrap" style="cursor:pointer;">
+            <div class="lbl" style="width:88px; overflow:hidden; line-height:1.25; white-space:normal;">
+              <div style="font-size:12px;">${s.name} <b style="color:${s.avg<70?'#b3352c':'#2B7A2E'};">${s.avg}%</b></div>
+              <div style="font-size:9px; color:#888;">${s.cls} · ${n}회</div>
+            </div>
+            <div class="track"><div style="width:${pctWidth}%; background:${color}"></div></div>
+            <div class="val" style="width:46px;">${valText}${s.attemptedToday ? '' : ' <span style="color:#c99a2e;">•</span>'}</div>
+          </div>
+        `);
+        bar.onclick = () => jumpToStudent(s.key);
+        barBox.appendChild(bar);
+      });
+
+      moreWrap.innerHTML = '';
+      if(sorted.length > CHART_PAGE){
+        const mb = el(`<button class="btn btn-secondary" style="padding:8px; font-size:13px;">${F.showAll ? '접기' : `나머지 ${sorted.length - CHART_PAGE}명 더 보기`}</button>`);
+        mb.onclick = () => { F.showAll = !F.showAll; drawCompare(); };
+        moreWrap.appendChild(mb);
+      }
+
+      legend.innerHTML = mode==='avg'
+        ? '이름 옆 숫자는 평균 정답률입니다. 70% 미만은 빨간 막대로 표시됩니다. 🟠 점은 오늘 미응시 학생입니다.'
+        : `막대는 응시 횟수입니다 (최다 ${maxAttempts}회 기준). 평균(${avgAttempts.toFixed(1)}회)보다 적게 본 학생은 주황 막대입니다. 🟠 점은 오늘 미응시 학생입니다.`;
+    }
+    drawCompare();
+    zone.appendChild(chartCard);
+
+    // ---------- CSV ----------
+    const csvBtn = el(`<button class="btn btn-secondary" style="margin-bottom:12px;">📊 성적 CSV 다운로드 (현재 조건 ${view.length}명)</button>`);
+    csvBtn.onclick = () => {
+      const rows = [['수업구분','반','번호','이름','누적응시횟수','평균정답률(%)','복습대기단어수','최근응시일','오늘응시여부']];
+      view.forEach(s=>{
+        const lastDate = s.attempts[s.attempts.length-1].date;
+        rows.push([s.track==='jr3'?'3학년특강':'일반', s.cls, s.num, s.name, s.attempts.length, s.avg, poolCounts[s.key]||0, lastDate, s.attemptedToday?'응시':'미응시']);
+      });
+      const csvText = '\uFEFF' + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+      const blob = new Blob([csvText], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `그루앙스3000_성적_${todayStr()}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+    zone.appendChild(csvBtn);
+
+    zone.appendChild(el(`<p class="muted" style="margin-bottom:10px;">이름을 누르면 상세 기록을 볼 수 있습니다.</p>`));
+
+    // ---------- 학생 카드 ----------
+    view.forEach(s=>{
+      zone.appendChild(makeStudentCard(s, poolCounts[s.key] || 0));
+    });
+  }
+
+  redrawAll();
+}
+
+function makeStudentCard(s, poolCount){
+  const card = el(`
+    <div class="card" style="cursor:pointer;">
+      <div class="statrow">
+        <span><b>${s.cls} ${s.num}번 ${s.name}</b>${s.track==='jr3' ? ' <span class="badge-warn" style="font-size:10px;">3학년특강</span>' : ''}</span>
+        <span>${s.attemptedToday ? '<span class="badge-ok">오늘 응시완료</span>' : '<span class="badge-warn">오늘 미응시</span>'}</span>
       </div>
-    `);
-    card.dataset.studentKey = s.key;
-    card.querySelector('.printBtn').onclick = (ev) => {
-      ev.stopPropagation();
-      const printArea = document.getElementById('printArea');
-      let html = `
-        <div style="font-family:sans-serif; padding:20px;">
-          <h1 style="margin-bottom:4px;">그루앙스 3000 단어 시험 리포트</h1>
-          <p style="margin-top:0; color:#555;">${s.cls} ${s.num}번 ${s.name} · 출력일: ${todayStr()}</p>
-          <p>누적 응시 ${s.attempts.length}회 · 평균 정답률 ${s.avg}%</p>
-          <hr>
-      `;
+      <div class="statrow"><span class="muted">누적 응시 ${s.attempts.length}회</span><span class="muted">평균 정답률 ${s.avg}%</span></div>
+      <div class="statrow"><span class="muted">복습 대기 단어</span><span class="${poolCount>0?'badge-warn':'badge-ok'}">${poolCount}개</span></div>
+      <button class="btn btn-secondary printBtn" style="margin-top:8px; padding:8px; font-size:13px;">🖨️ 이 학생 리포트 인쇄</button>
+      <div class="detailWrap" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"></div>
+    </div>
+  `);
+  card.dataset.studentKey = s.key;
+  card.querySelector('.printBtn').onclick = (ev) => {
+    ev.stopPropagation();
+    const printArea = document.getElementById('printArea');
+    let html = `
+      <div style="font-family:sans-serif; padding:20px;">
+        <h1 style="margin-bottom:4px;">그루앙스 3000 단어 시험 리포트</h1>
+        <p style="margin-top:0; color:#555;">${s.cls} ${s.num}번 ${s.name} · 출력일: ${todayStr()}</p>
+        <p>누적 응시 ${s.attempts.length}회 · 평균 정답률 ${s.avg}%</p>
+        <hr>
+    `;
+    s.attempts.slice().reverse().forEach(a=>{
+      const pct = Math.round(100*a.score/a.total);
+      const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
+      html += `<h3 style="margin-bottom:2px;">${a.date} · ${modeLabel} — ${a.score}/${a.total} (${pct}%)</h3>`;
+      const wrongWords = (a.wordResults||[]).filter(w=>!w.correct);
+      if(wrongWords.length){
+        html += `<p style="margin:4px 0;">틀린 단어 (${wrongWords.length}개): ${wrongWords.map(w=>`${w.en}-${w.ko}`).join(', ')}</p>`;
+      } else {
+        html += `<p style="margin:4px 0; color:#2B7A2E;">틀린 단어 없음</p>`;
+      }
+    });
+    html += `</div>`;
+    printArea.innerHTML = html;
+    window.print();
+  };
+  card.onclick = () => {
+    const dw = card.querySelector('.detailWrap');
+    if(dw.style.display==='none'){
+      dw.style.display = 'block';
+      dw.innerHTML = '';
+      dw.appendChild(attendanceTimelineEl(s));
       s.attempts.slice().reverse().forEach(a=>{
         const pct = Math.round(100*a.score/a.total);
         const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
-        html += `<h3 style="margin-bottom:2px;">${a.date} · ${modeLabel} — ${a.score}/${a.total} (${pct}%)</h3>`;
+        const attemptEl = el(`<div style="margin-bottom:10px;"><div class="statrow"><span class="muted">${a.date} · ${modeLabel}</span><span class="${pct<70?'badge-warn':'badge-ok'}">${a.score}/${a.total} (${pct}%)</span></div></div>`);
+        const unitDetail = el(`<div></div>`);
+        Object.keys(a.unitStats||{}).sort((x,y)=>x-y).forEach(u=>{
+          const st = a.unitStats[u];
+          const p = st.total ? Math.round(100*st.correct/st.total) : 0;
+          unitDetail.appendChild(el(`
+            <div class="barwrap">
+              <div class="lbl">U${pad(u,3)}</div>
+              <div class="track"><div style="width:${p}%; background:${p<70?'#b3352c':'#2B7A2E'}"></div></div>
+              <div class="val">${st.correct}/${st.total}</div>
+            </div>
+          `));
+        });
+        attemptEl.appendChild(unitDetail);
         const wrongWords = (a.wordResults||[]).filter(w=>!w.correct);
         if(wrongWords.length){
-          html += `<p style="margin:4px 0;">틀린 단어 (${wrongWords.length}개): ${wrongWords.map(w=>`${w.en}-${w.ko}`).join(', ')}</p>`;
-        } else {
-          html += `<p style="margin:4px 0; color:#2B7A2E;">틀린 단어 없음</p>`;
-        }
-      });
-      html += `</div>`;
-      printArea.innerHTML = html;
-      window.print();
-    };
-    card.onclick = () => {
-      const dw = card.querySelector('.detailWrap');
-      if(dw.style.display==='none'){
-        dw.style.display = 'block';
-        dw.innerHTML = '';
-        dw.appendChild(attendanceTimelineEl(s));
-        s.attempts.slice().reverse().forEach(a=>{
-          const pct = Math.round(100*a.score/a.total);
-          const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
-          const attemptEl = el(`<div style="margin-bottom:10px;"><div class="statrow"><span class="muted">${a.date} · ${modeLabel}</span><span class="${pct<70?'badge-warn':'badge-ok'}">${a.score}/${a.total} (${pct}%)</span></div></div>`);
-          const unitDetail = el(`<div></div>`);
-          Object.keys(a.unitStats||{}).sort((x,y)=>x-y).forEach(u=>{
-            const st = a.unitStats[u];
-            const p = st.total ? Math.round(100*st.correct/st.total) : 0;
-            unitDetail.appendChild(el(`
-              <div class="barwrap">
-                <div class="lbl">U${pad(u,3)}</div>
-                <div class="track"><div style="width:${p}%; background:${p<70?'#b3352c':'#2B7A2E'}"></div></div>
-                <div class="val">${st.correct}/${st.total}</div>
-              </div>
-            `));
+          const wrongBox = el(`<div style="margin-top:6px;"><span class="muted" style="font-size:11px;">틀린 단어 (${wrongWords.length}개):</span><div style="margin-top:4px;"></div></div>`);
+          const chipWrap = wrongBox.querySelector('div');
+          wrongWords.forEach(w=>{
+            chipWrap.appendChild(el(`<span class="wrongword">${w.en} - ${w.ko}</span>`));
           });
-          attemptEl.appendChild(unitDetail);
-          const wrongWords = (a.wordResults||[]).filter(w=>!w.correct);
-          if(wrongWords.length){
-            const wrongBox = el(`<div style="margin-top:6px;"><span class="muted" style="font-size:11px;">틀린 단어 (${wrongWords.length}개):</span><div style="margin-top:4px;"></div></div>`);
-            const chipWrap = wrongBox.querySelector('div');
-            wrongWords.forEach(w=>{
-              chipWrap.appendChild(el(`<span class="wrongword">${w.en} - ${w.ko}</span>`));
-            });
-            attemptEl.appendChild(wrongBox);
-          }
-          dw.appendChild(attemptEl);
-        });
-      } else {
-        dw.style.display = 'none';
-      }
-    };
-    body.appendChild(card);
-  }
+          attemptEl.appendChild(wrongBox);
+        }
+        dw.appendChild(attemptEl);
+      });
+    } else {
+      dw.style.display = 'none';
+    }
+  };
+  return card;
 }
 
 async function renderStudentMgmtTab(body){
@@ -1257,6 +1399,70 @@ async function renderStudentMgmtTab(body){
   const dupNames = Object.keys(byName).filter(n =>
     byName[n].length > 1 || !STANDARD_CLS.test(byName[n][0].cls)
   );
+
+  // ===== 학생 삭제 =====
+  const delCard = el(`<div class="card"></div>`);
+  delCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:6px;">학생 기록 삭제</h3>`));
+  delCard.appendChild(el(`<p class="muted" style="margin-top:0; font-size:12px;">테스트용으로 만든 가짜 학생을 지울 때 쓰세요. 그 학생의 <b>모든 응시 기록과 복습 단어</b>가 함께 지워지며, 되돌릴 수 없습니다.</p>`));
+
+  const delList = el(`<div style="margin-top:10px;"></div>`);
+  delCard.appendChild(delList);
+
+  function drawDeleteList(){
+    delList.innerHTML = '';
+    const sorted = [...keyList].sort((a,b)=>
+      a.cls.localeCompare(b.cls,'ko',{numeric:true}) || (Number(a.num)-Number(b.num))
+    );
+    sorted.forEach(s=>{
+      const row = el(`
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid #eee;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px;"><b>${s.cls} ${s.num}번 ${s.name}</b>${s.track==='jr3' ? ' <span class="badge-warn" style="font-size:10px;">3학년특강</span>' : ''}</div>
+            <div class="muted" style="font-size:11px;">응시 ${s.count}회 · key: ${s.key}</div>
+          </div>
+          <button class="delBtn" style="padding:7px 12px; font-size:12px; font-weight:600; border:1px solid #e0b4b0; background:#fdf3f2; color:#b3352c; border-radius:8px; cursor:pointer; white-space:nowrap;">삭제</button>
+        </div>
+      `);
+      const btn = row.querySelector('.delBtn');
+      btn.onclick = async () => {
+        const answer = prompt(
+          '정말 삭제하시겠습니까?\n\n' +
+          '  ' + s.cls + ' ' + s.num + '번 ' + s.name + '\n' +
+          '  응시 기록 ' + s.count + '건과 복습 단어가 모두 지워집니다.\n' +
+          '  되돌릴 수 없습니다.\n\n' +
+          '삭제하려면 학생 이름 "' + s.name + '" 을(를) 그대로 입력하세요.'
+        );
+        if(answer === null) return;
+        if(answer.trim() !== s.name){
+          showToast('이름이 일치하지 않아 취소했습니다');
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = '삭제 중...';
+        try{
+          const q2 = query(collection(db, COL_ATTEMPTS), where('studentKey','==', s.key));
+          const snap2 = await getDocs(q2);
+          for(const d of snap2.docs){
+            await deleteDoc(doc(db, COL_ATTEMPTS, d.id));
+          }
+          try{ await deleteDoc(doc(db, COL_REVIEWPOOL, s.key)); }catch(e){}
+          POOL_COUNT_CACHE = null;
+          showToast(`${s.name} 학생의 기록 ${snap2.size}건을 삭제했습니다`);
+          row.remove();
+          const i = keyList.findIndex(x=>x.key===s.key);
+          if(i>=0) keyList.splice(i,1);
+        }catch(e){
+          console.error(e);
+          btn.disabled = false;
+          btn.textContent = '삭제 실패';
+          showToast('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        }
+      };
+      delList.appendChild(row);
+    });
+  }
+  drawDeleteList();
+  body.appendChild(delCard);
 
   body.appendChild(el(`<div class="card"><b>이름이 겹치거나, 반 표기 형식이 표준과 다른 학생: ${dupNames.length}건</b><p class="muted" style="margin-bottom:0;">"2학년 3반"처럼 학년+반이 함께 표시되지 않고 숫자만 있는 경우도 여기 나타납니다. 아래에서 학년·반·번호를 다시 골라 "이 정보로 전부 합치기"를 누르면 표준 형식으로 저장됩니다.</p></div>`));
 
