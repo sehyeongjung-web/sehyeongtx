@@ -768,19 +768,58 @@ ROUTES.teacherDashboard = (main, elFn, {tab}) => {
   else renderSettingsTab(body);
 };
 
+// ===== 공용 데이터 조회 =====
+const ATTEMPT_FETCH_LIMIT = 3000;
+
+// 응시 기록을 불러온다. 상한에 걸리면 truncated=true 로 알려준다(조용히 잘리지 않게).
+async function fetchAttempts(){
+  const attempts = [];
+  let truncated = false;
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(ATTEMPT_FETCH_LIMIT));
+    const snap = await getDocs(q);
+    snap.forEach(d => attempts.push(d.data()));
+    truncated = snap.size >= ATTEMPT_FETCH_LIMIT;
+  }catch(e){ console.error(e); }
+  return { attempts, truncated };
+}
+
+// 복습 대기 단어 수를 학생별로 따로 읽지 않고 한 번에 가져온다.
+let POOL_COUNT_CACHE = null;
+async function fetchAllPoolCounts(force){
+  if(POOL_COUNT_CACHE && !force) return POOL_COUNT_CACHE;
+  const map = {};
+  try{
+    const snap = await getDocs(collection(db, COL_REVIEWPOOL));
+    snap.forEach(d => { map[d.id] = Object.keys((d.data()||{}).words || {}).length; });
+  }catch(e){ console.error(e); }
+  POOL_COUNT_CACHE = map;
+  return map;
+}
+
+function truncationWarning(count){
+  return el(`
+    <div class="card" style="border:1px solid #e0b4b0; background:#fdf3f2;">
+      <b style="color:#b3352c;">⚠️ 기록이 많아 일부만 불러왔습니다</b>
+      <p class="muted" style="margin:6px 0 0; font-size:12px;">
+        최근 ${count}건까지만 계산에 포함됐습니다. 그보다 오래된 기록은 빠져 있어서
+        평균 정답률이 실제와 다를 수 있습니다. 화면 아래 CSV를 받아 엑셀에서 확인하시거나,
+        오래된 학년 기록 정리를 검토해 주세요.
+      </p>
+    </div>
+  `);
+}
+
 // ===== 오답 분석 탭 =====
 const ROOT_BY_UNIT = {};
 UNITS.forEach(u => { ROOT_BY_UNIT[u.n] = u.root_meaning || u.root || ''; });
 
 async function renderWrongTab(body){
   body.appendChild(el(`<div class="empty">불러오는 중...</div>`));
-  let allAttempts = [];
-  try{
-    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(500));
-    const snap = await getDocs(q);
-    snap.forEach(d => allAttempts.push(d.data()));
-  }catch(e){ console.error(e); }
+  const fetched = await fetchAttempts();
+  const allAttempts = fetched.attempts;
   body.innerHTML = '';
+  if(fetched.truncated) body.appendChild(truncationWarning(ATTEMPT_FETCH_LIMIT));
 
   if(allAttempts.length === 0){
     body.appendChild(el(`<div class="empty">아직 응시 기록이 없습니다.</div>`));
@@ -980,13 +1019,11 @@ async function renderWrongTab(body){
 
 async function renderOverviewTab(body){
   body.appendChild(el(`<div class="empty">불러오는 중...</div>`));
-  let allAttempts = [];
-  try{
-    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(500));
-    const snap = await getDocs(q);
-    snap.forEach(d => allAttempts.push(d.data()));
-  }catch(e){ console.error(e); }
+  const fetched = await fetchAttempts();
+  const allAttempts = fetched.attempts;
+  const poolCounts = await fetchAllPoolCounts(true);
   body.innerHTML = '';
+  if(fetched.truncated) body.appendChild(truncationWarning(ATTEMPT_FETCH_LIMIT));
 
   const info = computeDayInfo(new Date(), 'main');
   const range = info.idx!==null ? unitRangeForDayIndex(info.idx, 'main') : null;
@@ -1004,11 +1041,7 @@ async function renderOverviewTab(body){
     csvBtn.textContent = '준비 중...';
     const rows = [['수업구분','반','번호','이름','누적응시횟수','평균정답률(%)','복습대기단어수','최근응시일','오늘응시여부']];
     for(const s of students){
-      let poolCount = 0;
-      try{
-        const poolSnap = await getDoc(doc(db, COL_REVIEWPOOL, s.key));
-        if(poolSnap.exists()) poolCount = Object.keys(poolSnap.data().words||{}).length;
-      }catch(e){ console.error(e); }
+      const poolCount = poolCounts[s.key] || 0;
       const lastDate = s.attempts[s.attempts.length-1].date;
       rows.push([s.track==='jr3'?'3학년특강':'일반', s.cls, s.num, s.name, s.attempts.length, s.avg, poolCount, lastDate, s.attemptedToday?'응시':'미응시']);
     }
@@ -1111,11 +1144,7 @@ async function renderOverviewTab(body){
   body.appendChild(chartCard);
 
   for(const s of students){
-    let poolCount = 0;
-    try{
-      const poolSnap = await getDoc(doc(db, COL_REVIEWPOOL, s.key));
-      if(poolSnap.exists()) poolCount = Object.keys(poolSnap.data().words||{}).length;
-    }catch(e){ console.error(e); }
+    const poolCount = poolCounts[s.key] || 0;
 
     const card = el(`
       <div class="card" style="cursor:pointer;">
@@ -1201,7 +1230,7 @@ async function renderStudentMgmtTab(body){
   body.appendChild(el(`<div class="empty">불러오는 중...</div>`));
   let allAttempts = [];
   try{
-    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(2000));
+    const q = query(collection(db, COL_ATTEMPTS), orderBy('date','desc'), fslimit(ATTEMPT_FETCH_LIMIT));
     const snap = await getDocs(q);
     snap.forEach(d => allAttempts.push(d.data()));
   }catch(e){ console.error(e); }
