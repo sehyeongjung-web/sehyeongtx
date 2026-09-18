@@ -833,22 +833,69 @@ async function renderOverviewTab(body){
 
   body.appendChild(el(`<p class="muted" style="margin-bottom:10px;">이름을 누르면 상세 기록을 볼 수 있습니다.</p>`));
 
-  // ===== 학생별 비교 막대그래프 (평균 정답률 기준 내림차순) =====
+  // ===== 학생별 비교 막대그래프 (평균 정답률 / 응시 횟수 전환) =====
   const chartCard = el(`<div class="card"></div>`);
-  chartCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:10px;">학생별 평균 정답률 비교</h3>`));
-  const sortedByAvg = [...students].sort((a,b)=> b.avg - a.avg);
-  sortedByAvg.forEach(s=>{
-    const bar = el(`
-      <div class="barwrap" style="cursor:pointer;">
-        <div class="lbl" style="width:78px; overflow:hidden; line-height:1.25; white-space:normal;"><div style="font-size:12px;">${s.name}</div><div style="font-size:9px; color:#888;">${s.cls}</div></div>
-        <div class="track"><div style="width:${s.avg}%; background:${s.avg<70?'#b3352c':'#2B7A2E'}"></div></div>
-        <div class="val">${s.avg}%${s.attemptedToday ? '' : ' <span style="color:#c99a2e;">•</span>'}</div>
-      </div>
-    `);
-    bar.onclick = () => jumpToStudent(s.key);
-    chartCard.appendChild(bar);
+  chartCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:10px;">학생별 비교</h3>`));
+
+  const maxAttempts = Math.max(...students.map(s=>s.attempts.length), 1);
+  const avgAttempts = students.reduce((t,s)=>t+s.attempts.length,0) / students.length;
+
+  const modeBar = el(`
+    <div style="display:flex; gap:6px; margin-bottom:12px;">
+      <button class="cmpBtn" data-m="avg" style="flex:1; padding:8px 4px; font-size:12px; font-weight:600; border:1px solid #ddd; border-radius:8px; cursor:pointer;">평균 정답률순</button>
+      <button class="cmpBtn" data-m="cnt" style="flex:1; padding:8px 4px; font-size:12px; font-weight:600; border:1px solid #ddd; border-radius:8px; cursor:pointer;">응시 횟수순</button>
+    </div>
+  `);
+  chartCard.appendChild(modeBar);
+
+  const barBox = el(`<div></div>`);
+  chartCard.appendChild(barBox);
+  const legend = el(`<p class="muted" style="margin-top:8px; margin-bottom:0; font-size:11px;"></p>`);
+  chartCard.appendChild(legend);
+
+  function drawCompare(mode){
+    modeBar.querySelectorAll('.cmpBtn').forEach(b=>{
+      const on = b.dataset.m === mode;
+      b.style.background = on ? '#0d281c' : '#f4f4f4';
+      b.style.color = on ? '#fff' : '#666';
+      b.style.borderColor = on ? '#0d281c' : '#ddd';
+    });
+
+    const list = [...students].sort((a,b)=>
+      mode==='avg' ? (b.avg - a.avg) : (b.attempts.length - a.attempts.length)
+    );
+
+    barBox.innerHTML = '';
+    list.forEach(s=>{
+      const n = s.attempts.length;
+      const pctWidth = mode==='avg' ? s.avg : Math.round(100*n/maxAttempts);
+      const color = mode==='avg'
+        ? (s.avg < 70 ? '#b3352c' : '#2B7A2E')
+        : (n < avgAttempts ? '#c99a2e' : '#2B7A2E');
+      const valText = mode==='avg' ? `${s.avg}%` : `${n}회`;
+      const bar = el(`
+        <div class="barwrap" style="cursor:pointer;">
+          <div class="lbl" style="width:88px; overflow:hidden; line-height:1.25; white-space:normal;">
+            <div style="font-size:12px;">${s.name} <b style="color:${s.avg<70?'#b3352c':'#2B7A2E'};">${s.avg}%</b></div>
+            <div style="font-size:9px; color:#888;">${s.cls} · ${n}회</div>
+          </div>
+          <div class="track"><div style="width:${pctWidth}%; background:${color}"></div></div>
+          <div class="val" style="width:46px;">${valText}${s.attemptedToday ? '' : ' <span style="color:#c99a2e;">•</span>'}</div>
+        </div>
+      `);
+      bar.onclick = () => jumpToStudent(s.key);
+      barBox.appendChild(bar);
+    });
+
+    legend.innerHTML = mode==='avg'
+      ? '이름 옆 숫자는 평균 정답률입니다. 70% 미만은 빨간 막대로 표시됩니다. 🟠 점은 오늘 미응시 학생입니다.'
+      : `막대는 응시 횟수입니다 (최다 ${maxAttempts}회 기준). 평균(${avgAttempts.toFixed(1)}회)보다 적게 본 학생은 주황 막대입니다. 🟠 점은 오늘 미응시 학생입니다.`;
+  }
+
+  modeBar.querySelectorAll('.cmpBtn').forEach(b=>{
+    b.onclick = () => drawCompare(b.dataset.m);
   });
-  chartCard.appendChild(el(`<p class="muted" style="margin-top:8px; margin-bottom:0; font-size:11px;">🟠 점은 오늘 미응시 학생입니다.</p>`));
+  drawCompare('avg');
   body.appendChild(chartCard);
 
   for(const s of students){
