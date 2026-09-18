@@ -4,14 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>3000 그림단어책 — 암기 말고 이해하세요</title>
+<title>그루앙스 3000 — 암기 말고 이해하세요</title>
+<meta name="description" content="어근 하나로 수십 개 단어를 해독하는 그림단어책. 루트북·파워북·킬러북 245유닛 3,310단어.">
+<link rel="icon" href="gruance_symbol.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="그루앙스 3000">
+<meta property="og:title" content="그루앙스 3000 — 암기 말고 이해하세요">
+<meta property="og:description" content="어근 하나로 수십 개 단어를 해독하는 그림단어책. 245유닛 3,310단어.">
+<meta property="og:url" content="https://sehyeongjung-web.github.io/sehyeongtx/">
+<meta property="og:image" content="https://sehyeongjung-web.github.io/sehyeongtx/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sehyeongjung-web.github.io/sehyeongtx/og-card.png">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
   --green:#1B3A2D;
   --green2:#2a5040;
   --green3:#233f31;
-  --gold:#C8A84B;
+  --gold:#E8752A;
+  --gold-lite:#F29552;
   --cream:#F5F0E8;
   --cream2:#EDE8DE;
   --white:#fff;
@@ -27,11 +40,12 @@ nav{
   position:sticky;top:0;z-index:100;
   background:rgba(27,58,45,0.96);
   backdrop-filter:blur(10px);
-  border-bottom:1px solid rgba(200,168,75,0.2);
+  border-bottom:1px solid rgba(232,117,42,0.2);
   padding:14px 24px;
   display:flex;justify-content:space-between;align-items:center;
 }
-.nav-logo{font-size:15px;font-weight:700;color:var(--gold);letter-spacing:0.04em;}
+.nav-logo{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:var(--gold-lite);letter-spacing:0.04em;}
+.nav-symbol{height:22px;width:auto;display:block;}
 .nav-btn{
   padding:9px 20px;border-radius:20px;
   background:var(--gold);color:var(--green);
@@ -52,7 +66,7 @@ nav{
 }
 .s1-eyebrow{
   font-size:12px;font-weight:500;
-  letter-spacing:0.18em;color:var(--gold);
+  letter-spacing:0.18em;color:var(--gold-lite);
   text-transform:uppercase;margin-bottom:36px;
 }
 .s1-title{
@@ -75,7 +89,7 @@ nav{
 .s1-brand{
   margin-top:60px;
   font-size:12px;letter-spacing:0.12em;
-  color:rgba(200,168,75,0.5);
+  color:rgba(242,149,82,0.55);
 }
 
 /* ── SLIDE 2: 해결책 ── */
@@ -86,7 +100,7 @@ nav{
 }
 .s2-eyebrow{
   font-size:12px;font-weight:500;
-  letter-spacing:0.18em;color:var(--gold);
+  letter-spacing:0.18em;color:var(--gold-lite);
   margin-bottom:24px;
 }
 .s2-title{
@@ -101,7 +115,7 @@ nav{
 }
 .s2-feat{
   background:var(--green3);
-  border:1px solid rgba(200,168,75,0.15);
+  border:1px solid rgba(232,117,42,0.15);
   border-radius:12px;
   padding:18px 24px;
   display:flex;align-items:center;gap:14px;
@@ -120,18 +134,18 @@ nav{
   transition:opacity 0.15s, transform 0.15s;
 }
 .s2-cta:hover{opacity:0.88;transform:translateY(-1px);}
-.s2-brand{margin-top:48px;font-size:12px;letter-spacing:0.12em;color:rgba(200,168,75,0.5);}
+.s2-brand{margin-top:48px;font-size:12px;letter-spacing:0.12em;color:rgba(242,149,82,0.55);}
 
 /* ── SLIDE 3: Dual Coding ── */
 .s3{
   background:var(--green);
   padding:80px 28px;
   text-align:center;
-  border-top:1px solid rgba(200,168,75,0.1);
+  border-top:1px solid rgba(232,117,42,0.1);
 }
 .s3-eyebrow{
   font-size:12px;letter-spacing:0.2em;
-  color:var(--gold);margin-bottom:20px;
+  color:var(--gold-lite);margin-bottom:20px;
   text-transform:uppercase;
 }
 .s3-title{
@@ -170,8 +184,8 @@ nav{
   font-size:14px;color:var(--gray);
   line-height:1.7;margin-bottom:8px;
 }
-.s3-cite{font-size:12px;color:rgba(200,168,75,0.6);font-style:italic;}
-.s3-brand{margin-top:48px;font-size:12px;letter-spacing:0.12em;color:rgba(200,168,75,0.5);}
+.s3-cite{font-size:12px;color:rgba(232,117,42,0.6);font-style:italic;}
+.s3-brand{margin-top:48px;font-size:12px;letter-spacing:0.12em;color:rgba(242,149,82,0.55);}
 
 /* ── SLIDE 4: Prototype Theory (크림 배경) ── */
 .s4{
@@ -213,10 +227,10 @@ nav{
 }
 .s4-center-word{
   font-size:16px;font-weight:800;
-  color:var(--gold);
+  color:var(--gold-lite);
 }
 .s4-center-label{
-  font-size:9px;color:rgba(200,168,75,0.7);
+  font-size:9px;color:rgba(232,117,42,0.7);
   margin-top:2px;letter-spacing:0.05em;
 }
 .s4-box{
@@ -283,12 +297,36 @@ nav{
 }
 .s5-brand{margin-top:48px;font-size:12px;letter-spacing:0.12em;color:rgba(27,58,45,0.3);}
 
+
+/* ── 책 구매 ── */
+.buy{background:var(--cream);padding:72px 24px;text-align:center;}
+.buy-eyebrow{font-size:11px;font-weight:700;letter-spacing:0.18em;
+  color:var(--soft-green);margin-bottom:14px;}
+.buy-title{font-size:clamp(24px,5.5vw,32px);font-weight:800;color:var(--green);
+  margin-bottom:10px;word-break:keep-all;}
+.buy-sub{font-size:14px;color:rgba(27,58,45,0.6);margin-bottom:34px;word-break:keep-all;}
+.buy-grid{display:grid;gap:12px;max-width:440px;margin:0 auto 30px;}
+.buy-card{text-decoration:none;transition:transform .15s,box-shadow .15s;background:var(--white);border-radius:14px;padding:18px 20px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid rgba(27,58,45,0.08);text-align:left;}
+.buy-name{font-size:16px;font-weight:800;color:var(--green);}
+.buy-meta{font-size:12px;color:rgba(27,58,45,0.55);margin-top:3px;}
+.buy-level{font-size:11px;font-weight:700;padding:5px 11px;border-radius:11px;
+  background:var(--green);color:var(--white);white-space:nowrap;}
+.buy-btn{display:inline-block;padding:16px 42px;background:var(--green);
+  color:var(--white);border-radius:28px;font-size:16px;font-weight:700;
+  text-decoration:none;transition:opacity .15s,transform .15s;}
+.buy-btn:hover{opacity:.88;transform:translateY(-2px);}
+.buy-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(27,58,45,.12);}
+.buy-note{font-size:12px;color:rgba(27,58,45,0.5);margin-top:6px;}
+@media(min-width:600px){.buy-grid{max-width:520px;}}
+
 /* ── FINAL CTA ── */
 .cta-final{
   background:var(--green);
   padding:80px 28px;
   text-align:center;
-  border-top:1px solid rgba(200,168,75,0.2);
+  border-top:1px solid rgba(232,117,42,0.2);
 }
 .cta-title{
   font-size:clamp(26px,6vw,38px);
@@ -313,9 +351,10 @@ nav{
 footer{
   background:rgba(0,0,0,0.3);
   padding:24px;text-align:center;
-  border-top:1px solid rgba(200,168,75,0.1);
+  border-top:1px solid rgba(232,117,42,0.1);
 }
-.footer-logo{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:6px;}
+.footer-logo{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;color:var(--gold-lite);margin-bottom:8px;}
+.footer-symbol{height:20px;width:auto;display:block;}
 .footer-copy{font-size:11px;color:rgba(255,255,255,0.3);}
 
 /* ── 반응형 ── */
@@ -330,7 +369,7 @@ footer{
 
 <!-- NAV -->
 <nav>
-  <div class="nav-logo">3000 그림단어책</div>
+  <div class="nav-logo"><img src="gruance_symbol.png" alt="" class="nav-symbol"><span>그루앙스 3000</span></div>
   <a class="nav-btn" href="https://sehyeongjung-web.github.io/sehyeongtx/app.html">학습 시작 →</a>
 </nav>
 
@@ -340,7 +379,7 @@ footer{
   <h1 class="s1-title">지금 당신의<br>방법이<br>틀렸습니다</h1>
   <div class="s1-divider"></div>
   <p class="s1-sub">단어 50개 외웠는데<br>내일이면 45개가 사라진다면?</p>
-  <div class="s1-brand">3000 그림단어책</div>
+  <div class="s1-brand">그루앙스 3000</div>
 </section>
 
 <!-- SLIDE 2: 암기 말고 이해하세요 -->
@@ -362,7 +401,7 @@ footer{
     </div>
   </div>
   <a class="s2-cta" href="https://sehyeongjung-web.github.io/sehyeongtx/app.html">지금 바로 공부하기 →</a>
-  <div class="s2-brand">3000 그림단어책</div>
+  <div class="s2-brand">그루앙스 3000</div>
 </section>
 
 <!-- SLIDE 3: Dual Coding Theory -->
@@ -385,7 +424,7 @@ footer{
   </div>
   <p class="s3-sub">사진으로 배운 단어만 두 경로를 모두 씁니다</p>
   <p class="s3-cite">— Paivio, 1971 —</p>
-  <div class="s3-brand">3000 그림단어책</div>
+  <div class="s3-brand">그루앙스 3000</div>
 </section>
 
 <!-- SLIDE 4: Prototype Theory (크림 배경) -->
@@ -408,7 +447,7 @@ footer{
   </div>
   <br>
   <div class="s4-banner">이건 일부일 뿐입니다. 핵심 뉘앙스 하나면 나머지는 외울 필요가 없습니다</div>
-  <div class="s4-brand">3000 그림단어책</div>
+  <div class="s4-brand">그루앙스 3000</div>
 </section>
 
 <!-- SLIDE 5: 기억 보존율 (크림 배경) -->
@@ -430,18 +469,44 @@ footer{
     </div>
   </div>
   <div class="s5-banner">그림으로 배운 단어가 6.5배 더 오래 기억됩니다</div>
-  <div class="s5-brand">3000 그림단어책</div>
+  <div class="s5-brand">그루앙스 3000</div>
 </section>
 
 <!-- FINAL CTA -->
+
+<!-- 책 구매 -->
+<section class="buy">
+  <div class="buy-eyebrow">종이책으로도 만나보세요</div>
+  <h2 class="buy-title">3권으로 완성하는<br>어근 학습</h2>
+  <p class="buy-sub">앱과 책을 함께 쓰면 기억이 훨씬 오래갑니다</p>
+  <div class="buy-grid">
+    <a class="buy-card" href="https://bookk.co.kr/bookStore/6a73d607e5bcd73259dcd19b" target="_blank" rel="noopener">
+      <div><div class="buy-name">루트북</div>
+        <div class="buy-meta">UNIT 001–082 · 1,073단어 · 19,900원</div></div>
+      <span class="buy-level">기초</span>
+    </a>
+    <a class="buy-card" href="https://bookk.co.kr/bookStore/6a73d6ac6507f9fe9e16aa97" target="_blank" rel="noopener">
+      <div><div class="buy-name">파워북</div>
+        <div class="buy-meta">UNIT 083–164 · 1,210단어 · 19,900원</div></div>
+      <span class="buy-level">중급</span>
+    </a>
+    <a class="buy-card" href="https://bookk.co.kr/bookStore/6a7482ba2fcf7516301215cd" target="_blank" rel="noopener">
+      <div><div class="buy-name">킬러북</div>
+        <div class="buy-meta">UNIT 165–245 · 1,027단어 · 17,500원</div></div>
+      <span class="buy-level">고급</span>
+    </a>
+  </div>
+  <p class="buy-note">부크크 · 교보문고 · 예스24 · 알라딘에서 판매합니다</p>
+</section>
+
 <section class="cta-final">
   <h2 class="cta-title">지금 바로 시작해 보세요</h2>
-  <p class="cta-sub">루트북 · 파워북 · 킬러북 — 총 3,000단어<br>지금 바로 시작할 수 있어요</p>
+  <p class="cta-sub">루트북 · 파워북 · 킬러북 — 245유닛 · 3,310단어<br>지금 바로 시작할 수 있어요</p>
   <a class="cta-btn" href="https://sehyeongjung-web.github.io/sehyeongtx/app.html">어근 학습 시작하기 →</a>
 </section>
 
 <footer>
-  <div class="footer-logo">3000 그림단어책</div>
+  <div class="footer-logo"><img src="gruance_symbol.png" alt="" class="footer-symbol"><span>그루앙스 3000</span></div>
   <div class="footer-copy">© 2026 정세형. All rights reserved.</div>
 </footer>
 
