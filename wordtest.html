@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>그루앙스 3000 단어 시험</title>
 <style>
   * { box-sizing: border-box; }
@@ -110,6 +113,8 @@ let SETTINGS = {
   secondsPerQuestion: 10,
   pin: "1234",
   jr3StartDate: '',
+  makeupOpen: false,
+  makeupMaxBack: 3,
   jr3UnitsPerDay: 6
 };
 let student = null;
@@ -159,6 +164,74 @@ function unitRangeForDayIndex(idx, track){
   const endUnit = idx*perDay + perDay;
   if(startUnit > maxUnit) return null;
   return {start: startUnit, end: Math.min(endUnit,maxUnit)};
+}
+
+// 지금까지 지나간 회차 목록 (오늘 제외)
+function pastDayRows(track, backFromToday){
+  const startSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
+  if(!startSetting) return [];
+  const perDay = track==='jr3' ? (SETTINGS.jr3UnitsPerDay||6) : 2;
+  const maxUnit = track==='jr3' ? 245 : 82;
+  const rows = [];
+  const cursor = new Date(startSetting + 'T00:00:00');
+  const now = new Date();
+  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let idx = 0, guard = 0;
+  while(guard++ < 3000){
+    const cur = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+    if(cur >= todayMid) break;
+    const d = cursor.getDay();
+    if(d !== 0 && d !== 6){
+      const su = idx*perDay + 1;
+      if(su > maxUnit) break;
+      rows.push({
+        idx: idx+1,
+        date: `${cursor.getFullYear()}-${pad(cursor.getMonth()+1,2)}-${pad(cursor.getDate(),2)}`,
+        range: {start: su, end: Math.min(su+perDay-1, maxUnit)}
+      });
+      idx++;
+    }
+    cursor.setDate(cursor.getDate()+1);
+  }
+  if(backFromToday) return rows.slice(-backFromToday);
+  return rows;
+}
+
+// 이 학생이 빠뜨린 회차 (최근 N회차 안에서만)
+async function findMissedDays(key, track){
+  if(!SETTINGS.makeupOpen) return [];
+  const back = SETTINGS.makeupMaxBack || 3;
+  const candidates = pastDayRows(track, back);
+  const missed = [];
+  for(const r of candidates){
+    const done = await hasAttemptedToday(key, r.date, 'new');
+    if(!done) missed.push(r);
+  }
+  return missed;
+}
+
+// 연속 응시 일수 (시험일 기준, 주말 제외)
+function calcStreak(dates, track){
+  const done = new Set(dates);
+  const all = pastDayRows(track, 0);
+  const today = todayStr();
+  if(done.has(today)) all.push({date: today});
+  let streak = 0;
+  for(let i = all.length - 1; i >= 0; i--){
+    if(done.has(all[i].date)) streak++;
+    else break;
+  }
+  return streak;
+}
+
+async function loadMyDates(key){
+  const out = [];
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), where('studentKey','==', key));
+    const snap = await getDocs(q);
+    snap.forEach(d => { const v = d.data(); if(v.mode === 'new') out.push(v.date); });
+  }catch(e){ console.error(e); }
+  return out;
 }
 
 function isWithinTestWindow(){
@@ -379,10 +452,13 @@ ROUTES.testGate = async (main) => {
     main.appendChild(backHomeBtn());
     return;
   }
+  const myDates = await loadMyDates(student.key);
+  const streak = calcStreak(myDates, track);
   main.appendChild(el(`
     <div class="card">
       <h2>${info.idx+1}회차 (${today}) · UNIT ${pad(range.start,3)} ~ UNIT ${pad(range.end,3)}</h2>
       <p class="muted">${student.cls} ${student.num}번 ${student.name}님, 준비되면 시작하세요.</p>
+      ${streak >= 2 ? `<p style="margin:6px 0 0; color:#2B7A2E; font-weight:700;">🔥 ${streak}일 연속 응시 중 — 오늘 보면 ${streak+1}일째</p>` : ''}
       <p class="muted">문제당 제한시간: ${SETTINGS.secondsPerQuestion}초 · 5지선다</p>
       ${dayType==='new+review' ? '<p class="muted">오늘은 수요일 — 시험 후 이번 주 복습도 이어집니다.</p>' : ''}
     </div>
@@ -390,8 +466,27 @@ ROUTES.testGate = async (main) => {
   const startBtn = el(`<div class="homebtn gold">시험 시작</div>`);
   startBtn.onclick = () => startTest(range, dayType);
   main.appendChild(startBtn);
+  await appendMakeupSection(main, track);
   main.appendChild(backHomeBtn());
 };
+
+// 밀린 시험 목록을 화면 아래에 붙인다.
+async function appendMakeupSection(main, track){
+  const missed = await findMissedDays(student.key, track);
+  if(missed.length === 0) return;
+  const card = el(`
+    <div class="card" style="border:1px solid #e6cfa0; background:#fffaf0;">
+      <h3 style="margin-top:0; margin-bottom:4px; color:#a8761a;">밀린 시험 ${missed.length}회차</h3>
+      <p class="muted" style="margin:0 0 10px; font-size:13px;">지금이면 따라잡을 수 있어요. 하나씩 해결해 봅시다.</p>
+    </div>
+  `);
+  missed.slice().reverse().forEach(r=>{
+    const b = el(`<div class="homebtn" style="margin-bottom:6px;">${r.idx}회차 보충 · UNIT ${pad(r.range.start,3)}~${pad(r.range.end,3)}</div>`);
+    b.onclick = () => startTest(r.range, 'new', {makeupDate: r.date, makeupIdx: r.idx});
+    card.appendChild(b);
+  });
+  main.appendChild(card);
+}
 
 function backHomeBtn(){
   const b = el(`<div class="homebtn" style="margin-top:8px;">처음으로</div>`);
@@ -466,7 +561,7 @@ function buildQuestionsFromWords(words, recentMeanings){
   return questions;
 }
 
-async function startTest(range, dayType){
+async function startTest(range, dayType, makeup){
   main.innerHTML = '';
   main.appendChild(el(`<div class="empty">문제 준비 중...</div>`));
 
@@ -480,7 +575,7 @@ async function startTest(range, dayType){
   const questions = buildQuestionsFromWords(words, recentMeanings);
 
   testState = {
-    mode: 'new', dayType, range, questions, idx: 0, correctCount: 0,
+    mode: 'new', dayType, range, questions, idx: 0, correctCount: 0, makeup: makeup || null,
     unitStats: {}, wordResults: [], choicesShownFlat: [],
     startedAt: Date.now(), timerHandle: null
   };
@@ -681,10 +776,14 @@ async function finishTest(){
   const mode = testState.mode;
   const today = todayStr();
 
+  const mk = testState.makeup;
+  const recordDate = mk ? mk.makeupDate : today;
   const record = {
     studentKey: student.key, cls: student.cls, num: student.num, name: student.name,
     track: student.track || 'main',
-    date: today, mode,
+    date: recordDate, mode,
+    makeup: mk ? true : false,
+    takenOn: mk ? today : null,
     unitStart: mode==='new' ? testState.range.start : null,
     unitEnd: mode==='new' ? testState.range.end : null,
     score, total, unitStats: testState.unitStats,
@@ -693,7 +792,7 @@ async function finishTest(){
     createdAt: Date.now()
   };
   try{
-    const id = attemptDocId(student.key, today, mode);
+    const id = attemptDocId(student.key, recordDate, mode);
     await setDoc(doc(db, COL_ATTEMPTS, id), record);
   }catch(e){ console.error('save failed', e); showToast('저장 중 오류가 발생했습니다'); }
 
@@ -1676,6 +1775,247 @@ function renderSettingsTab(body){
       <button class="btn btn-primary" id="btnSaveJr3">저장</button>
     </div>
   `));
+  // ===== 보충 시험 =====
+  const mkCard = el(`
+    <div class="card">
+      <h3 style="margin-top:0; margin-bottom:6px;">보충 시험</h3>
+      <p class="muted" style="margin:0 0 12px; font-size:12px;">
+        켜면 학생 화면에 빠뜨린 회차가 나타나고, 그것만 응시할 수 있습니다.
+        지나간 회차 전체가 아니라 최근 몇 회차까지만 보여줍니다.
+      </p>
+      <div id="mkToggleBox" style="margin-bottom:12px;"></div>
+      <label>몇 회차 전까지 보여줄까요</label>
+      <input type="text" id="setMkBack" value="${SETTINGS.makeupMaxBack||3}" inputmode="numeric">
+      <button class="btn btn-primary" id="btnSaveMk">저장</button>
+    </div>
+  `);
+  body.appendChild(mkCard);
+
+  function drawMakeupToggle(){
+    const box = mkCard.querySelector('#mkToggleBox');
+    box.innerHTML = '';
+    const on = !!SETTINGS.makeupOpen;
+    const btn = el(`<button class="btn" style="background:${on ? '#2B7A2E' : '#eee'}; color:${on ? '#fff' : '#444'};">${on ? '✅ 보충 기간 열림 — 누르면 닫기' : '보충 기간 닫힘 — 누르면 열기'}</button>`);
+    btn.onclick = async () => {
+      SETTINGS.makeupOpen = !SETTINGS.makeupOpen;
+      await saveSettings();
+      showToast(SETTINGS.makeupOpen ? '보충 기간을 열었습니다' : '보충 기간을 닫았습니다');
+      drawMakeupToggle();
+    };
+    box.appendChild(btn);
+  }
+  drawMakeupToggle();
+
+  mkCard.querySelector('#btnSaveMk').onclick = async () => {
+    const v = parseInt(mkCard.querySelector('#setMkBack').value.trim(),10);
+    SETTINGS.makeupMaxBack = (v && v > 0) ? Math.min(v, 10) : 3;
+    mkCard.querySelector('#setMkBack').value = SETTINGS.makeupMaxBack;
+    await saveSettings();
+    showToast('저장되었습니다');
+  };
+
+  // ===== 시험 일정표 =====
+  const schedCard = el(`<div class="card"></div>`);
+  schedCard.appendChild(el(`<h3 style="margin-top:0; margin-bottom:8px;">시험 일정표</h3>`));
+  const schedTrackBar = el(`<div style="display:flex; gap:6px; margin-bottom:12px;"></div>`);
+  schedCard.appendChild(schedTrackBar);
+  const schedBox = el(`<div></div>`);
+  schedCard.appendChild(schedBox);
+  body.appendChild(schedCard);
+
+  const SCHED = { track: 'main', showAll: false };
+  let SCHED_ATT = null;
+
+  async function ensureAttempts(){
+    if(SCHED_ATT) return SCHED_ATT;
+    const r = await fetchAttempts();
+    SCHED_ATT = r.attempts;
+    return SCHED_ATT;
+  }
+
+  // 트랙별로 날짜별 응시 통계를 만든다.
+  function buildDayStats(attempts, track){
+    const mine = attempts.filter(a => (a.track||'main') === track);
+    const firstDate = {};
+    mine.forEach(a=>{
+      if(!firstDate[a.studentKey] || a.date < firstDate[a.studentKey]) firstDate[a.studentKey] = a.date;
+    });
+    const byDate = {};
+    mine.forEach(a=>{
+      if(!byDate[a.date]) byDate[a.date] = {takers:new Set(), onTime:new Set(), sum:0, cnt:0};
+      const d = byDate[a.date];
+      d.takers.add(a.studentKey);
+      if(!a.makeup) d.onTime.add(a.studentKey);
+      d.sum += a.score / a.total;
+      d.cnt++;
+    });
+    const enrolledBy = date => Object.values(firstDate).filter(f => f <= date).length;
+    return {byDate, enrolledBy, hasAny: mine.length > 0};
+  }
+
+  function buildSchedule(track){
+    const startSetting = track === 'jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
+    if(!startSetting) return null;
+    const perDay = track === 'jr3' ? (SETTINGS.jr3UnitsPerDay || 6) : 2;
+    const maxUnit = track === 'jr3' ? 245 : 82;
+    const rows = [];
+    const cursor = new Date(startSetting + 'T00:00:00');
+    let idx = 0;
+    let guard = 0;
+    while(guard++ < 3000){
+      const d = cursor.getDay();
+      if(d !== 0 && d !== 6){
+        const startUnit = idx * perDay + 1;
+        if(startUnit > maxUnit) break;
+        rows.push({
+          idx: idx + 1,
+          date: `${cursor.getFullYear()}-${pad(cursor.getMonth()+1,2)}-${pad(cursor.getDate(),2)}`,
+          dow: ['일','월','화','수','목','금','토'][d],
+          start: startUnit,
+          end: Math.min(startUnit + perDay - 1, maxUnit),
+          type: getDayType(new Date(cursor), track)
+        });
+        idx++;
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return {rows, perDay, maxUnit, startSetting};
+  }
+
+  async function drawSchedule(){
+    schedTrackBar.innerHTML = '';
+    [{value:'main',label:'일반 (하루 2유닛)'},{value:'jr3',label:`3학년특강 (하루 ${SETTINGS.jr3UnitsPerDay||6}유닛)`}].forEach(o=>{
+      const b = el(`<button style="flex:1; padding:8px 4px; font-size:12px; font-weight:600; border-radius:8px; cursor:pointer;">${o.label}</button>`);
+      const on = SCHED.track === o.value;
+      b.style.background = on ? '#0d281c' : '#f4f4f4';
+      b.style.color = on ? '#fff' : '#666';
+      b.style.border = '1px solid ' + (on ? '#0d281c' : '#ddd');
+      b.onclick = () => { SCHED.track = o.value; SCHED.showAll = false; drawSchedule(); };
+      schedTrackBar.appendChild(b);
+    });
+
+    schedBox.innerHTML = '';
+    const data = buildSchedule(SCHED.track);
+    if(!data){
+      schedBox.appendChild(el(`<p class="muted" style="margin:0; font-size:13px;">시작일이 비어 있습니다. 위에서 시작일을 저장하면 일정표가 나타납니다.</p>`));
+      return;
+    }
+
+    const today = todayStr();
+    const todayRow = data.rows.find(r => r.date === today);
+    const stats = buildDayStats(await ensureAttempts(), SCHED.track);
+    const PAGE = 20;
+    let list = data.rows;
+    if(!SCHED.showAll){
+      // 오늘 기준 앞뒤로 보여준다
+      const ti = todayRow ? data.rows.indexOf(todayRow) : 0;
+      const from = Math.max(0, ti - 3);
+      list = data.rows.slice(from, from + PAGE);
+    }
+
+    const totalDays = data.rows.length;
+    const lastRow = data.rows[data.rows.length - 1];
+    schedBox.appendChild(el(`
+      <p class="muted" style="margin:0 0 10px; font-size:12px;">
+        ${data.startSetting} 시작 · 총 ${totalDays}회차 · UNIT 001~${pad(data.maxUnit,3)} · 종료 예정 ${lastRow ? lastRow.date : '-'}
+        ${todayRow ? ` · <b style="color:#2B7A2E;">오늘은 ${todayRow.idx}회차</b>` : ' · 오늘은 시험일이 아닙니다'}
+      </p>
+    `));
+
+    const table = el(`
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead>
+            <tr style="border-bottom:2px solid #ddd;">
+              <th style="text-align:left; padding:7px 6px; white-space:nowrap;">회차</th>
+              <th style="text-align:left; padding:7px 6px; white-space:nowrap;">날짜</th>
+              <th style="text-align:left; padding:7px 6px; white-space:nowrap;">요일</th>
+              <th style="text-align:left; padding:7px 6px; white-space:nowrap;">진도 유닛</th>
+              <th style="text-align:left; padding:7px 6px; white-space:nowrap;">구성</th>
+              <th style="text-align:right; padding:7px 6px; white-space:nowrap;">응시</th>
+              <th style="text-align:right; padding:7px 6px; white-space:nowrap;">정답률</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    `);
+    const tbody = table.querySelector('tbody');
+    list.forEach(r=>{
+      const isToday = r.date === today;
+      const isPast = r.date < today;
+      const typeLabel = r.type === 'new+review' ? '신규+복습' : (r.type === 'review' ? '복습' : '신규');
+      const st = stats.byDate[r.date];
+      const enrolled = stats.enrolledBy(r.date);
+      let takeCell = '<span style="color:#bbb;">-</span>';
+      let avgCell = '<span style="color:#bbb;">-</span>';
+      if(st && enrolled > 0){
+        const rate = Math.round(100 * st.takers.size / enrolled);
+        const onTimeRate = Math.round(100 * st.onTime.size / enrolled);
+        const makeupCount = st.takers.size - st.onTime.size;
+        const avg = Math.round(100 * st.sum / st.cnt);
+        const rc = rate < 60 ? '#b3352c' : (rate < 85 ? '#c99a2e' : '#2B7A2E');
+        const ac = avg < 70 ? '#b3352c' : '#2B7A2E';
+        takeCell = `<span style="color:${rc}; font-weight:700;">${rate}%</span> <span style="color:#999; font-size:11px;">${st.takers.size}/${enrolled}</span>`
+          + (makeupCount > 0 ? `<div style="font-size:10px; color:#a8761a;">정시 ${onTimeRate}% · 보충 ${makeupCount}명</div>` : '');
+        avgCell = `<span style="color:${ac};">${avg}%</span>`;
+      } else if(r.date > today){
+        takeCell = '<span style="color:#ccc;">예정</span>';
+        avgCell = '';
+      } else if(!st){
+        takeCell = '<span style="color:#c99a2e;">미응시</span>';
+        avgCell = '';
+      }
+      tbody.appendChild(el(`
+        <tr style="border-bottom:1px solid #f0f0f0; ${isToday ? 'background:#eef6ef; font-weight:700;' : (isPast ? 'opacity:0.6;' : '')}">
+          <td style="padding:7px 6px; white-space:nowrap;">${r.idx}회차</td>
+          <td style="padding:7px 6px; white-space:nowrap;">${r.date.slice(5).replace('-','/')}</td>
+          <td style="padding:7px 6px; white-space:nowrap;">${r.dow}</td>
+          <td style="padding:7px 6px; white-space:nowrap;">${pad(r.start,3)}~${pad(r.end,3)}</td>
+          <td style="padding:7px 6px; white-space:nowrap; color:#777;">${typeLabel}</td>
+          <td style="padding:7px 6px; white-space:nowrap; text-align:right;">${takeCell}</td>
+          <td style="padding:7px 6px; white-space:nowrap; text-align:right;">${avgCell}</td>
+        </tr>
+      `));
+    });
+    schedBox.appendChild(table);
+
+    if(data.rows.length > list.length || SCHED.showAll){
+      const mb = el(`<button class="btn btn-secondary" style="margin-top:10px; padding:8px; font-size:13px;">${SCHED.showAll ? '오늘 근처만 보기' : `전체 ${totalDays}회차 모두 보기`}</button>`);
+      mb.onclick = () => { SCHED.showAll = !SCHED.showAll; drawSchedule(); };
+      schedBox.appendChild(mb);
+    }
+
+    const csvBtn = el(`<button class="btn btn-secondary" style="margin-top:8px; padding:8px; font-size:13px;">📊 일정표 CSV 다운로드</button>`);
+    csvBtn.onclick = () => {
+      const rows = [['회차','날짜','요일','시작유닛','종료유닛','구성','응시인원','정시응시','보충응시','등록인원','응시율(%)','정시응시율(%)','평균정답률(%)']];
+      data.rows.forEach(r=>{
+        const st = stats.byDate[r.date];
+        const enrolled = stats.enrolledBy(r.date);
+        rows.push([r.idx, r.date, r.dow, pad(r.start,3), pad(r.end,3),
+          r.type === 'new+review' ? '신규+복습' : (r.type === 'review' ? '복습' : '신규'),
+          st ? st.takers.size : 0,
+          st ? st.onTime.size : 0,
+          st ? (st.takers.size - st.onTime.size) : 0,
+          enrolled,
+          (st && enrolled) ? Math.round(100*st.takers.size/enrolled) : '',
+          (st && enrolled) ? Math.round(100*st.onTime.size/enrolled) : '',
+          st ? Math.round(100*st.sum/st.cnt) : '']);
+      });
+      const csvText = '\uFEFF' + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+      const blob = new Blob([csvText], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `그루앙스3000_시험일정표_${SCHED.track === 'jr3' ? '3학년특강' : '일반'}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+    schedBox.appendChild(csvBtn);
+    schedBox.appendChild(el(`<p class="muted" style="margin:8px 0 0; font-size:11px;">응시율은 그 날짜까지 등록된 인원 대비입니다. 60% 미만은 빨간색으로 표시됩니다.</p>`));
+  }
+  drawSchedule();
+
   body.querySelector('#btnSave').onclick = async () => {
     SETTINGS.startDate = body.querySelector('#setStart').value.trim();
     SETTINGS.openHour = parseInt(body.querySelector('#setOpen').value.trim(),10) || 16;
@@ -1683,12 +2023,16 @@ function renderSettingsTab(body){
     SETTINGS.pin = body.querySelector('#setPin').value.trim() || '1234';
     await saveSettings();
     showToast('저장되었습니다');
+    drawSchedule();
   };
   body.querySelector('#btnSaveJr3').onclick = async () => {
     SETTINGS.jr3StartDate = body.querySelector('#setJr3Start').value.trim();
     SETTINGS.jr3UnitsPerDay = parseInt(body.querySelector('#setJr3Units').value.trim(),10) || 6;
     await saveSettings();
     showToast('저장되었습니다');
+    SCHED.track = 'jr3';
+    SCHED.showAll = false;
+    drawSchedule();
   };
 }
 
