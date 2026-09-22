@@ -1157,7 +1157,7 @@ async function renderOverviewTab(body){
 
   const allClasses = [...new Set(students.map(s=>s.cls))].sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
 
-  const F = { track:'all', cls:'all', q:'', showAll:false, sort:'avg', dayMode:'rate', showAllDays:false };
+  const F = { track:'all', cls:'all', q:'', showAll:false, sort:'avg', dayMode:'rate', showAllDays:false, openDay:null };
 
   // ===== 필터 =====
   const filterCard = el(`
@@ -1179,7 +1179,7 @@ async function renderOverviewTab(body){
       b.style.background = on ? '#0d281c' : '#f4f4f4';
       b.style.color = on ? '#fff' : '#666';
       b.style.border = '1px solid ' + (on ? '#0d281c' : '#ddd');
-      b.onclick = () => { setCur(o.value); F.showAll = false; F.showAllDays = false; redrawAll(); };
+      b.onclick = () => { setCur(o.value); F.showAll = false; F.showAllDays = false; F.openDay = null; redrawAll(); };
       host.appendChild(b);
     });
   }
@@ -1298,11 +1298,17 @@ async function renderOverviewTab(body){
     const dayMap = {};
     view.forEach(s=>{
       s.attempts.forEach(a=>{
-        if(!dayMap[a.date]) dayMap[a.date] = {date:a.date, takers:new Set(), scoreSum:0, cnt:0};
+        if(!dayMap[a.date]) dayMap[a.date] = {date:a.date, takers:new Set(), scoreSum:0, cnt:0, entries:{}};
         const d = dayMap[a.date];
         d.takers.add(s.key);
         d.scoreSum += a.score / a.total;
         d.cnt++;
+        // 같은 날 여러 번(신규/복습) 본 경우 합산
+        if(!d.entries[s.key]) d.entries[s.key] = {s, score:0, total:0, makeup:false, modes:[]};
+        const e = d.entries[s.key];
+        e.score += a.score; e.total += a.total;
+        if(a.makeup) e.makeup = true;
+        e.modes.push(a.mode === 'review' ? '복습' : '신규');
       });
     });
 
@@ -1311,6 +1317,7 @@ async function renderOverviewTab(body){
       const enrolled = view.filter(s => firstDateOf[s.key] <= d.date).length || 1;
       return {
         date: d.date,
+        entries: d.entries,
         taken: d.takers.size,
         enrolled,
         rate: Math.round(100 * d.takers.size / enrolled),
@@ -1329,6 +1336,69 @@ async function renderOverviewTab(body){
       dayCard.appendChild(dayMore);
       const dayLegend = el(`<p class="muted" style="margin:8px 0 0; font-size:11px;"></p>`);
       dayCard.appendChild(dayLegend);
+
+      function dayRosterEl(r){
+        const box = el(`<div style="margin:2px 0 12px; padding:10px 12px; border:1px solid #e3ece5; border-radius:8px; background:#fafcfa;"></div>`);
+        const takers = Object.values(r.entries)
+          .map(e => ({...e, pct: Math.round(100*e.score/e.total)}))
+          .sort((a,b)=> a.s.cls.localeCompare(b.s.cls,'ko',{numeric:true}) || (Number(a.s.num)-Number(b.s.num)));
+        const takenKeys = new Set(takers.map(t=>t.s.key));
+        const absent = view.filter(s => firstDateOf[s.key] <= r.date && !takenKeys.has(s.key))
+          .sort((a,b)=> a.cls.localeCompare(b.cls,'ko',{numeric:true}) || (Number(a.num)-Number(b.num)));
+
+        box.appendChild(el(`<div style="font-size:12px; font-weight:700; margin-bottom:6px; color:#2B7A2E;">응시 ${takers.length}명</div>`));
+        const list = el(`<div></div>`);
+        takers.forEach(t=>{
+          const c = t.pct < 70 ? '#b3352c' : '#2B7A2E';
+          const item = el(`
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #eef2ef; font-size:12px; cursor:pointer;">
+              <span>${t.s.cls} ${t.s.num}번 <b>${t.s.name}</b>${t.makeup ? ' <span style="font-size:10px; color:#a8761a; border:1px solid #e6cfa0; border-radius:8px; padding:0 5px;">보충</span>' : ''}</span>
+              <span><span style="color:#999; font-size:10px;">${t.modes.join('·')}</span> <b style="color:${c};">${t.score}/${t.total} (${t.pct}%)</b></span>
+            </div>
+          `);
+          item.onclick = (ev) => { ev.stopPropagation(); jumpToStudent(t.s.key); };
+          list.appendChild(item);
+        });
+        box.appendChild(list);
+
+        if(absent.length){
+          box.appendChild(el(`<div style="font-size:12px; font-weight:700; margin:10px 0 6px; color:#b3352c;">미응시 ${absent.length}명</div>`));
+          const chips = el(`<div style="display:flex; flex-wrap:wrap; gap:6px;"></div>`);
+          absent.forEach(s=>{
+            const chip = el(`<span style="padding:4px 9px; background:#fdf3f2; color:#b3352c; border:1px solid #e7c3bf; border-radius:12px; font-size:11px; cursor:pointer;">${s.cls} ${s.num}번 ${s.name}</span>`);
+            chip.onclick = (ev) => { ev.stopPropagation(); jumpToStudent(s.key); };
+            chips.appendChild(chip);
+          });
+          box.appendChild(chips);
+        }
+
+        const copyBtn = el(`<button class="btn btn-secondary" style="margin-top:10px; padding:7px; font-size:12px;">📋 이 날 명단 복사</button>`);
+        copyBtn.onclick = async (ev) => {
+          ev.stopPropagation();
+          const md = r.date.slice(5).replace('-','/');
+          const lines = [`[${md} 단어시험] 응시 ${takers.length}명 / 미응시 ${absent.length}명`, '', '■ 응시'];
+          takers.forEach(t => lines.push(`${t.s.cls} ${t.s.num}번 ${t.s.name} ${t.pct}%${t.makeup?' (보충)':''}`));
+          if(absent.length){
+            lines.push('', '■ 미응시');
+            absent.forEach(s => lines.push(`${s.cls} ${s.num}번 ${s.name}`));
+          }
+          const text = lines.join('\n');
+          try{
+            await navigator.clipboard.writeText(text);
+            copyBtn.textContent = '✅ 복사했습니다';
+          }catch(e){
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+            document.body.appendChild(ta); ta.select();
+            try{ document.execCommand('copy'); copyBtn.textContent = '✅ 복사했습니다'; }
+            catch(e2){ copyBtn.textContent = '복사 실패'; }
+            document.body.removeChild(ta);
+          }
+          setTimeout(()=>{ copyBtn.textContent = '📋 이 날 명단 복사'; }, 2000);
+        };
+        box.appendChild(copyBtn);
+        return box;
+      }
 
       function drawDays(){
         dayModeBar.innerHTML = '';
@@ -1352,16 +1422,20 @@ async function renderOverviewTab(body){
             : (r.avg < 70 ? '#b3352c' : '#2B7A2E');
           const valText = isRate ? `${r.taken}/${r.enrolled}` : `${r.avg}%`;
           const md = r.date.slice(5).replace('-','/');
-          dayBox.appendChild(el(`
-            <div class="barwrap" style="align-items:flex-start;">
+          const open = F.openDay === r.date;
+          const rowEl = el(`
+            <div class="barwrap" style="align-items:flex-start; cursor:pointer; ${open ? 'background:#f3f7f4; border-radius:6px;' : ''}">
               <div class="lbl" style="width:72px; line-height:1.3; white-space:normal;">
-                <div style="font-size:12px; color:#222;">${md} <b style="color:${r.rate<60?'#b3352c':'#2B7A2E'};">${r.rate}%</b></div>
+                <div style="font-size:12px; color:#222;">${open ? '▾' : '▸'} ${md} <b style="color:${r.rate<60?'#b3352c':'#2B7A2E'};">${r.rate}%</b></div>
                 <div style="font-size:9px; color:#888;">정답률 ${r.avg}%</div>
               </div>
               <div class="track" style="margin-top:3px;"><div style="width:${pct}%; background:${color}"></div></div>
               <div class="val" style="width:52px; margin-top:1px; font-size:11px;">${valText}</div>
             </div>
-          `));
+          `);
+          rowEl.onclick = () => { F.openDay = open ? null : r.date; drawDays(); };
+          dayBox.appendChild(rowEl);
+          if(open) dayBox.appendChild(dayRosterEl(r));
         });
 
         dayMore.innerHTML = '';
@@ -1372,7 +1446,7 @@ async function renderOverviewTab(body){
         }
 
         dayLegend.textContent = F.dayMode === 'rate'
-          ? '날짜 옆 숫자는 응시율입니다. 오른쪽은 응시 인원 / 그날까지 등록된 인원입니다. 60% 미만은 빨간 막대입니다.'
+          ? '날짜를 누르면 그날 응시자와 미응시자 명단이 펼쳐집니다. 오른쪽은 응시 인원 / 그날까지 등록된 인원입니다.'
           : '막대는 그날 응시자들의 평균 정답률입니다. 유난히 낮은 날은 그 범위 유닛이 어려웠다는 뜻입니다.';
       }
       drawDays();
