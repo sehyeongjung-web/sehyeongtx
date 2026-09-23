@@ -113,6 +113,7 @@ let SETTINGS = {
   secondsPerQuestion: 10,
   pin: "1234",
   jr3StartDate: '',
+  pauses: [],
   makeupOpen: false,
   makeupMaxBack: 3,
   jr3UnitsPerDay: 6
@@ -138,6 +139,28 @@ async function saveSettings(){
   await setDoc(doc(db, COL_SETTINGS, SETTINGS_DOC), SETTINGS);
 }
 
+function ymd(dateObj){
+  return `${dateObj.getFullYear()}-${pad(dateObj.getMonth()+1,2)}-${pad(dateObj.getDate(),2)}`;
+}
+// 휴강일인지 (기간은 양쪽 끝 포함)
+function isPausedDate(dstr){
+  return (SETTINGS.pauses || []).some(p => p && p.from && p.to && p.from <= dstr && dstr <= p.to);
+}
+// 이 날짜가 속한 휴강 기간
+function pauseRangeOf(dstr){
+  return (SETTINGS.pauses || []).find(p => p && p.from && p.to && p.from <= dstr && dstr <= p.to) || null;
+}
+// 휴강 종료 다음 평일
+function nextOpenDate(dstr){
+  const d = new Date(dstr + 'T00:00:00');
+  for(let i=0; i<400; i++){
+    d.setDate(d.getDate()+1);
+    const w = d.getDay();
+    if(w !== 0 && w !== 6 && !isPausedDate(ymd(d))) return ymd(d);
+  }
+  return null;
+}
+
 function computeDayInfo(dateObj, track){
   const startSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
   if(!startSetting) return {idx:null, weekend:false, notStarted:true};
@@ -149,11 +172,15 @@ function computeDayInfo(dateObj, track){
   let cursor = new Date(startMid);
   while(cursor <= now){
     const day = cursor.getDay();
-    if(day !== 0 && day !== 6) idx++;
+    if(day !== 0 && day !== 6 && !isPausedDate(ymd(cursor))) idx++;
     cursor.setDate(cursor.getDate()+1);
   }
   const todayDay = now.getDay();
   if(todayDay === 0 || todayDay === 6) return {idx:null, weekend:true, notStarted:false};
+  const nowStr = ymd(now);
+  if(isPausedDate(nowStr)){
+    return {idx:null, weekend:false, notStarted:false, paused:true, pause:pauseRangeOf(nowStr)};
+  }
   return {idx, weekend:false, notStarted:false};
 }
 
@@ -181,7 +208,7 @@ function pastDayRows(track, backFromToday){
     const cur = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
     if(cur >= todayMid) break;
     const d = cursor.getDay();
-    if(d !== 0 && d !== 6){
+    if(d !== 0 && d !== 6 && !isPausedDate(ymd(cursor))){
       const su = idx*perDay + 1;
       if(su > maxUnit) break;
       rows.push({
@@ -431,6 +458,20 @@ ROUTES.testGate = async (main) => {
 
   // dayType === 'new' or 'new+review'
   const info = computeDayInfo(now, track);
+  if(info.paused){
+    main.innerHTML = '';
+    const re = nextOpenDate(info.pause.to);
+    main.appendChild(el(`
+      <div class="card">
+        <h2>오늘은 시험이 없습니다</h2>
+        <p class="muted">${info.pause.from} ~ ${info.pause.to} 기간에는 단어 시험을 쉽니다.</p>
+        ${re ? `<p style="margin:8px 0 0; color:#2B7A2E; font-weight:700;">${re}부터 다시 시작합니다</p>` : ''}
+        <p class="muted" style="margin-top:8px;">진도는 밀리지 않습니다. 다시 시작하는 날 이어서 나갑니다.</p>
+      </div>
+    `));
+    main.appendChild(backHomeBtn());
+    return;
+  }
   if(info.notStarted){
     main.innerHTML = '';
     main.appendChild(el(`<div class="card"><h2>아직 시작 전입니다</h2><p class="muted">시험 시작일이 아직 되지 않았어요. 선생님께 문의해주세요.</p></div>`));
@@ -1865,6 +1906,70 @@ function renderSettingsTab(body){
       <button class="btn btn-primary" id="btnSaveJr3">저장</button>
     </div>
   `));
+  // ===== 휴강 기간 =====
+  const pauseCard = el(`
+    <div class="card">
+      <h3 style="margin-top:0; margin-bottom:6px;">휴강 (시험 쉬는 기간)</h3>
+      <p class="muted" style="margin:0 0 12px; font-size:12px;">
+        시험 기간이나 행사로 며칠 쉴 때 쓰세요. 그 기간에는 학생 화면에 시험이 나오지 않습니다.
+        <b>진도는 밀리지 않습니다.</b> 쉰 날은 회차에서 빠지고, 다시 시작하는 날 이어서 나갑니다.
+      </p>
+      <div id="pauseList" style="margin-bottom:12px;"></div>
+      <label>시작일</label>
+      <input type="date" id="pFrom">
+      <label>종료일 (이 날까지 쉽니다)</label>
+      <input type="date" id="pTo">
+      <button class="btn btn-primary" id="btnAddPause" style="margin-top:10px;">휴강 기간 추가</button>
+    </div>
+  `);
+  body.appendChild(pauseCard);
+
+  function drawPauses(){
+    const box = pauseCard.querySelector('#pauseList');
+    box.innerHTML = '';
+    const list = (SETTINGS.pauses || []).slice().sort((a,b)=>a.from.localeCompare(b.from));
+    if(list.length === 0){
+      box.appendChild(el(`<p class="muted" style="margin:0; font-size:13px;">등록된 휴강 기간이 없습니다.</p>`));
+      return;
+    }
+    const today = todayStr();
+    list.forEach(p=>{
+      const active = p.from <= today && today <= p.to;
+      const past = p.to < today;
+      const row = el(`
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #eee; ${past ? 'opacity:0.5;' : ''}">
+          <div style="flex:1;">
+            <div style="font-size:13px;"><b>${p.from} ~ ${p.to}</b> ${active ? '<span class="badge-warn" style="font-size:10px;">진행 중</span>' : (past ? '<span class="muted" style="font-size:11px;">종료</span>' : '<span class="badge-ok" style="font-size:10px;">예정</span>')}</div>
+          </div>
+          <button class="rmBtn" style="padding:6px 11px; font-size:12px; font-weight:600; border:1px solid #ddd; background:#f6f6f6; color:#666; border-radius:8px; cursor:pointer;">삭제</button>
+        </div>
+      `);
+      row.querySelector('.rmBtn').onclick = async () => {
+        SETTINGS.pauses = (SETTINGS.pauses||[]).filter(x => !(x.from === p.from && x.to === p.to));
+        await saveSettings();
+        showToast('휴강 기간을 지웠습니다');
+        drawPauses();
+        drawSchedule();
+      };
+      box.appendChild(row);
+    });
+  }
+  drawPauses();
+
+  pauseCard.querySelector('#btnAddPause').onclick = async () => {
+    const f = pauseCard.querySelector('#pFrom').value;
+    const t = pauseCard.querySelector('#pTo').value || f;
+    if(!f){ showToast('시작일을 정해주세요'); return; }
+    if(t < f){ showToast('종료일이 시작일보다 빠릅니다'); return; }
+    SETTINGS.pauses = (SETTINGS.pauses || []).concat([{from:f, to:t}]);
+    await saveSettings();
+    showToast(`${f} ~ ${t} 휴강으로 설정했습니다`);
+    pauseCard.querySelector('#pFrom').value = '';
+    pauseCard.querySelector('#pTo').value = '';
+    drawPauses();
+    drawSchedule();
+  };
+
   // ===== 보충 시험 =====
   const mkCard = el(`
     <div class="card">
@@ -1954,7 +2059,7 @@ function renderSettingsTab(body){
     let guard = 0;
     while(guard++ < 3000){
       const d = cursor.getDay();
-      if(d !== 0 && d !== 6){
+      if(d !== 0 && d !== 6 && !isPausedDate(ymd(cursor))){
         const startUnit = idx * perDay + 1;
         if(startUnit > maxUnit) break;
         rows.push({
@@ -2003,6 +2108,10 @@ function renderSettingsTab(body){
       list = data.rows.slice(from, from + PAGE);
     }
 
+    const upcoming = (SETTINGS.pauses||[]).filter(p => p.to >= todayStr()).sort((a,b)=>a.from.localeCompare(b.from));
+    if(upcoming.length){
+      schedBox.appendChild(el(`<p style="margin:0 0 8px; font-size:12px; color:#a8761a;">휴강 예정: ${upcoming.map(p=>p.from===p.to?p.from:`${p.from}~${p.to}`).join(', ')} (일정표에서 제외됨)</p>`));
+    }
     const totalDays = data.rows.length;
     const lastRow = data.rows[data.rows.length - 1];
     schedBox.appendChild(el(`
