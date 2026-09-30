@@ -777,13 +777,24 @@ function jumpToStudent(key){
   if(dw && dw.style.display === 'none') card.click();
 }
 
+// 정답률 구간별 격려 문구. 100%는 90% 구간 문구를 그대로 쓴다.
+function encouragementFor(pct){
+  if(pct >= 90) return {text:'참 잘했어요', color:'#2B7A2E'};
+  if(pct >= 80) return {text:'조금만 더 힘냅시다', color:'#3f8f5f'};
+  if(pct >= 70) return {text:'조금 아쉽네요', color:'#c99a2e'};
+  if(pct >= 60) return {text:'공부한 게 어디야, 조금만 더 힘냅시다', color:'#c9822e'};
+  return {text:'괜찮아요, 다시 하면 됩니다', color:'#b3352c'};
+}
+
 function scoreCard(title, score, total){
   const pct = Math.round(100*score/total);
+  const enc = encouragementFor(pct);
   return el(`
     <div class="card final-score">
       <div class="muted">${title}</div>
       <div class="num">${score} / ${total}</div>
       <div class="muted">정답률 ${pct}%</div>
+      <div style="margin-top:8px; font-size:15px; font-weight:700; color:${enc.color};">${enc.text}</div>
     </div>
   `);
 }
