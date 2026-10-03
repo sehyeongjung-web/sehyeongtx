@@ -435,6 +435,7 @@ ROUTES.testGate = async (main) => {
   if(!isWithinTestWindow()){
     main.innerHTML = '';
     main.appendChild(el(`<div class="card"><h2>아직 시험 시간이 아닙니다</h2><p class="muted">오늘 시험은 오후 ${SETTINGS.openHour}시부터 밤 12시까지 볼 수 있어요.</p></div>`));
+    await appendMakeupSection(main, track);
     main.appendChild(backHomeBtn());
     return;
   }
@@ -447,11 +448,13 @@ ROUTES.testGate = async (main) => {
     main.innerHTML = '';
     if(already){
       main.appendChild(el(`<div class="card"><h2>오늘 복습 시험은 이미 완료했습니다</h2><p class="muted">${student.cls} ${student.num}번 ${student.name}님, 수고하셨어요.</p></div>`));
+      await appendMakeupSection(main, track);
       main.appendChild(backHomeBtn());
       return;
     }
     if(poolWords.length === 0){
       main.appendChild(el(`<div class="card"><h2>복습할 단어가 없습니다!</h2><p class="muted">지금까지 틀린 단어가 없거나 이미 다 마스터했어요. 잘하고 있어요 👍</p></div>`));
+      await appendMakeupSection(main, track);
       main.appendChild(backHomeBtn());
       return;
     }
@@ -465,6 +468,7 @@ ROUTES.testGate = async (main) => {
     const startBtn = el(`<div class="homebtn gold">복습 시험 시작</div>`);
     startBtn.onclick = () => startReviewTest(pool, {thenGoHome:true});
     main.appendChild(startBtn);
+    await appendMakeupSection(main, track);
     main.appendChild(backHomeBtn());
     return;
   }
@@ -495,6 +499,7 @@ ROUTES.testGate = async (main) => {
   if(!range){
     main.innerHTML = '';
     main.appendChild(el(`<div class="card"><h2>전체 과정을 완료했습니다</h2><p class="muted">배정된 시험 범위를 모두 완료했습니다. 수고하셨습니다!</p></div>`));
+    await appendMakeupSection(main, track);
     main.appendChild(backHomeBtn());
     return;
   }
@@ -503,6 +508,7 @@ ROUTES.testGate = async (main) => {
   main.innerHTML = '';
   if(already){
     main.appendChild(el(`<div class="card"><h2>오늘 시험은 이미 완료했습니다</h2><p class="muted">${student.cls} ${student.num}번 ${student.name}님, 내일 다시 시도해주세요.</p></div>`));
+    await appendMakeupSection(main, track);
     main.appendChild(backHomeBtn());
     return;
   }
@@ -2025,6 +2031,7 @@ function renderSettingsTab(body){
         3학년이 응시하지 못한 회차만 대상입니다(일반/2학년에는 적용되지 않습니다).
         켜면 학생 화면에 빠뜨린 회차가 나타나고, 그것만 응시할 수 있습니다.
         지나간 회차 전체가 아니라 최근 몇 회차까지만 보여줍니다. 시험 시간과 문항 수는 정규 시험과 동일합니다.
+        <b>정규 시험 시간대(오후 ${SETTINGS.openHour}시 이전)와 무관하게 언제든 볼 수 있습니다</b> — 단, 휴강 기간에는 보이지 않습니다.
       </p>
       <div id="mkToggleBox" style="margin-bottom:12px;"></div>
       <label>최근 몇 회차까지 보충을 허용할까요</label>
