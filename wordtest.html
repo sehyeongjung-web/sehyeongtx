@@ -367,7 +367,10 @@ ROUTES.home = (main) => {
   studentBtn.onclick = () => render('studentLogin');
   main.appendChild(studentBtn);
   const teacherBtn = el(`<div class="homebtn">선생님 대시보드</div>`);
-  teacherBtn.onclick = () => render('teacherPin');
+  teacherBtn.onclick = () => {
+    if(isTeacherUnlocked()) render('teacherDashboard', {tab:'overview'});
+    else render('teacherPin');
+  };
   main.appendChild(teacherBtn);
 };
 
@@ -913,6 +916,20 @@ async function finishTest(){
   main.appendChild(backHomeBtn());
 }
 
+const TEACHER_AUTH_KEY = 'gruance_teacher_pin';
+// 저장된 값이 지금 PIN과 같을 때만 "기억된 상태"로 본다.
+// 선생님이 PIN을 바꾸면 저장된 값이 더 이상 안 맞으므로 모든 기기에서 자동으로 다시 물어보게 된다.
+function isTeacherUnlocked(){
+  try{ return localStorage.getItem(TEACHER_AUTH_KEY) === SETTINGS.pin; }
+  catch(e){ return false; }
+}
+function rememberTeacherUnlocked(){
+  try{ localStorage.setItem(TEACHER_AUTH_KEY, SETTINGS.pin); }catch(e){}
+}
+function forgetTeacherUnlocked(){
+  try{ localStorage.removeItem(TEACHER_AUTH_KEY); }catch(e){}
+}
+
 // ============== TEACHER PIN ==============
 ROUTES.teacherPin = (main) => {
   main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
@@ -921,14 +938,22 @@ ROUTES.teacherPin = (main) => {
   const card = el(`
     <div class="card">
       <input type="password" id="pinInput" placeholder="PIN 입력" inputmode="numeric">
-      <button class="btn btn-primary" id="btnGo">입장</button>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer;">
+        <input type="checkbox" id="pinRemember" checked style="width:auto;">
+        <span style="font-size:13px; color:#666;">이 기기에서 기억하기 (다음부터 PIN 생략)</span>
+      </label>
+      <button class="btn btn-primary" id="btnGo" style="margin-top:12px;">입장</button>
     </div>
   `);
   main.appendChild(card);
   main.querySelector('#btnGo').onclick = () => {
     const v = main.querySelector('#pinInput').value;
-    if(v === SETTINGS.pin) render('teacherDashboard', {tab:'overview'});
-    else showToast('PIN이 올바르지 않습니다');
+    if(v === SETTINGS.pin){
+      if(main.querySelector('#pinRemember').checked) rememberTeacherUnlocked();
+      render('teacherDashboard', {tab:'overview'});
+    } else {
+      showToast('PIN이 올바르지 않습니다');
+    }
   };
 };
 
@@ -937,7 +962,18 @@ ROUTES.teacherDashboard = (main, elFn, {tab}) => {
   tab = tab || 'overview';
   main.appendChild(el(`<a class="backlink" id="back">&larr; 처음으로</a>`));
   main.querySelector('#back').onclick = () => render('home');
-  main.appendChild(el(`<h1>선생님 대시보드</h1>`));
+  const header = el(`
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <h1 style="margin-bottom:0;">선생님 대시보드</h1>
+      <a id="teacherLogout" style="font-size:12px; color:#999; text-decoration:underline; cursor:pointer; white-space:nowrap;">이 기기 로그아웃</a>
+    </div>
+  `);
+  main.appendChild(header);
+  header.querySelector('#teacherLogout').onclick = () => {
+    forgetTeacherUnlocked();
+    showToast('로그아웃했습니다. 다음부터 이 기기에서 PIN을 다시 입력해야 합니다.');
+    render('home');
+  };
   const tabs = el(`
     <div class="tabs">
       <div class="tab" data-t="overview">성적 현황</div>
@@ -1934,6 +1970,29 @@ async function renderStudentMgmtTab(body){
 }
 
 function renderSettingsTab(body){
+  // ===== 비밀번호(PIN) 제어판 =====
+  const pinCard = el(`
+    <div class="card">
+      <h3 style="margin-top:0; margin-bottom:6px;">선생님 PIN</h3>
+      <p class="muted" style="margin:0 0 12px; font-size:12px;">
+        대시보드에 들어올 때 쓰는 번호입니다. <b>바꾸면 이 기기를 포함한 모든 기기에서
+        "기억하기"가 풀려서</b> 다음에 들어올 때 새 PIN을 다시 입력해야 합니다.
+      </p>
+      <label>현재 PIN</label>
+      <input type="text" id="setPinOnly" value="${SETTINGS.pin}" inputmode="numeric">
+      <button class="btn btn-primary" id="btnSavePin" style="margin-top:10px;">PIN 변경 저장</button>
+    </div>
+  `);
+  body.appendChild(pinCard);
+  pinCard.querySelector('#btnSavePin').onclick = async () => {
+    const v = pinCard.querySelector('#setPinOnly').value.trim();
+    if(!v){ showToast('PIN을 입력해주세요'); return; }
+    SETTINGS.pin = v;
+    await saveSettings();
+    rememberTeacherUnlocked(); // 방금 바꾼 사람은 이 기기에서 다시 입력하지 않아도 되게
+    showToast('PIN이 변경되었습니다. 다른 기기는 새 PIN을 다시 입력해야 합니다.');
+  };
+
   body.appendChild(el(`
     <div class="card">
       <label>시험 시작일 (1일차, 평일만 카운트)</label>
@@ -1942,8 +2001,6 @@ function renderSettingsTab(body){
       <input type="text" id="setOpen" value="${SETTINGS.openHour}" inputmode="numeric">
       <label>문제당 제한시간(초)</label>
       <input type="text" id="setSec" value="${SETTINGS.secondsPerQuestion}" inputmode="numeric">
-      <label>선생님 PIN</label>
-      <input type="text" id="setPin" value="${SETTINGS.pin}" inputmode="numeric">
       <button class="btn btn-primary" id="btnSave">저장</button>
     </div>
   `));
@@ -2365,7 +2422,6 @@ function renderSettingsTab(body){
     SETTINGS.startDate = body.querySelector('#setStart').value.trim();
     SETTINGS.openHour = parseInt(body.querySelector('#setOpen').value.trim(),10) || 16;
     SETTINGS.secondsPerQuestion = parseInt(body.querySelector('#setSec').value.trim(),10) || 10;
-    SETTINGS.pin = body.querySelector('#setPin').value.trim() || '1234';
     await saveSettings();
     showToast('저장되었습니다');
     drawSchedule();
