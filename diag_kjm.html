@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>김지민 보충시험 진단</title>
+<style>
+  body{margin:0;background:#faf8f4;color:#1a1a1a;font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;padding:16px;padding-bottom:40px;}
+  .wrap{max-width:600px;margin:0 auto;}
+  h1{font-size:18px;margin:0 0 4px;}
+  .note{font-size:12px;color:#666;margin:0 0 16px;}
+  .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:16px;margin-bottom:12px;font-size:13px;line-height:1.7;}
+  .card b{color:#0d281c;}
+  .ok{color:#2B7A2E;font-weight:700;}
+  .bad{color:#b3352c;font-weight:700;}
+  pre{white-space:pre-wrap;word-break:break-all;font-size:12px;background:#f6f6f6;padding:10px;border-radius:8px;}
+</style>
+</head>
+<body><div class="wrap">
+<h1>김지민 — 10월 5일 보충시험 진단</h1>
+<p class="note">실제 Firestore 데이터와 현재 설정값으로 보충 로직을 그대로 재현해 봅니다.</p>
+<div id="host" class="card">불러오는 중...</div>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDKFSHiCvYpAlylqw73SDznhRwUH128bd4",
+  authDomain: "gruance3000.firebaseapp.com",
+  projectId: "gruance3000",
+  storageBucket: "gruance3000.firebasestorage.app",
+  messagingSenderId: "427032975760",
+  appId: "1:427032975760:web:f2b07d003fb9837a14fb15",
+  measurementId: "G-5Q9HLVKEGV"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+const COL_SETTINGS='wordtest_settings', COL_ATTEMPTS='wordtest_attempts', COL_REVIEWPOOL='wordtest_reviewpool';
+const TARGET_NAME='김지민';
+
+const el=h=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+const pad=(n,w)=>String(n).padStart(w,'0');
+function ymd(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1,2)}-${pad(d.getDate(),2)}`; }
+function todayStr(){ return ymd(new Date()); }
+
+function isPausedDate(SETTINGS, dstr, track){
+  return (SETTINGS.pauses || []).some(p=>{
+    if(!(p && p.from && p.to && p.from<=dstr && dstr<=p.to)) return false;
+    const pt = p.track || 'all';
+    if(pt==='all') return true;
+    return track ? pt===track : true;
+  });
+}
+function paceOnDate(SETTINGS, track, dstr){
+  if(track!=='jr3') return 2;
+  let p = SETTINGS.jr3UnitsPerDay || 6;
+  let bestFrom = null;
+  (SETTINGS.jr3PaceChanges||[]).forEach(c=>{
+    if(c && c.from && c.perDay && c.from<=dstr){
+      if(bestFrom===null || c.from>bestFrom){ bestFrom=c.from; p=c.perDay; }
+    }
+  });
+  return p;
+}
+function pastDayRows(SETTINGS, track, backFromToday){
+  const startSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
+  if(!startSetting) return [];
+  const maxUnit = track==='jr3' ? 245 : 82;
+  const rows=[]; const cursor=new Date(startSetting+'T00:00:00');
+  const now=new Date(); const todayMid=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  let idx=0, unitsSoFar=0, guard=0;
+  while(guard++<3000){
+    const cur=new Date(cursor.getFullYear(),cursor.getMonth(),cursor.getDate());
+    if(cur>=todayMid) break;
+    const d=cursor.getDay();
+    if(d!==0 && d!==6 && !isPausedDate(SETTINGS, ymd(cursor), track)){
+      const su=unitsSoFar+1;
+      if(su>maxUnit) break;
+      const pace=paceOnDate(SETTINGS, track, ymd(cursor));
+      rows.push({idx:idx+1, date:ymd(cursor), range:{start:su, end:Math.min(unitsSoFar+pace,maxUnit)}});
+      unitsSoFar+=pace; idx++;
+    }
+    cursor.setDate(cursor.getDate()+1);
+  }
+  if(backFromToday) return rows.slice(-backFromToday);
+  return rows;
+}
+function attemptDocId(key, dateStr, mode){ return key+'_'+dateStr+(mode==='review'?'_review':''); }
+
+const host = document.getElementById('host');
+let out = [];
+
+try{
+  // 1) 현재 설정값
+  const setSnap = await getDoc(doc(db, COL_SETTINGS, 'main'));
+  let SETTINGS = {};
+  if(setSnap.exists()) SETTINGS = setSnap.data();
+  else {
+    const q2 = await getDocs(collection(db, COL_SETTINGS));
+    q2.forEach(d=>{ SETTINGS = d.data(); });
+  }
+
+  out.push(`<b>현재 설정값</b>
+jr3StartDate: ${SETTINGS.jr3StartDate}
+jr3UnitsPerDay: ${SETTINGS.jr3UnitsPerDay}
+jr3PaceChanges: ${JSON.stringify(SETTINGS.jr3PaceChanges||[])}
+pauses: ${JSON.stringify(SETTINGS.pauses||[])}
+makeupOpen: ${SETTINGS.makeupOpen}
+makeupMaxBack: ${SETTINGS.makeupMaxBack}
+오늘 날짜(이 기기 기준): ${todayStr()}`);
+
+  // 2) 학생 조회
+  const q = query(collection(db, COL_ATTEMPTS), where('track','==','jr3'), where('name','==',TARGET_NAME));
+  const snap = await getDocs(q);
+  const byKey = {};
+  snap.forEach(d=>{
+    const a = d.data();
+    if(!byKey[a.studentKey]) byKey[a.studentKey] = {cls:a.cls, num:a.num, rows:[]};
+    byKey[a.studentKey].rows.push({...a, docId:d.id});
+  });
+  const keys = Object.keys(byKey);
+
+  if(keys.length === 0){
+    out.push(`<b class="bad">"${TARGET_NAME}" 이름의 3학년 응시 기록을 전혀 찾지 못했습니다.</b>
+이름이 다르게 등록돼 있거나(띄어쓰기, 오타), 애초에 한 번도 응시한 적이 없을 수 있습니다.`);
+  } else {
+    if(keys.length > 1){
+      out.push(`<b class="bad">⚠️ 같은 이름으로 서로 다른 학생 키가 ${keys.length}개 있습니다 (중복 등록 가능성)</b>`);
+    }
+    for(const key of keys){
+      const g = byKey[key];
+      g.rows.sort((a,b)=>a.date.localeCompare(b.date));
+      const dateList = g.rows.map(r=>`${r.date}(${r.mode||'new'}${r.makeup?',보충':''})`).join(', ');
+      out.push(`<b>key=${key}</b>  (${g.cls} ${g.num}번)
+응시 ${g.rows.length}건: ${dateList}`);
+
+      // 10/5 'new' 모드 문서가 실제로 존재하는지 직접 확인
+      const checkDate = '2026-10-05';
+      const docId = attemptDocId(key, checkDate, 'new');
+      const dsnap = await getDoc(doc(db, COL_ATTEMPTS, docId));
+      out.push(`→ 이 키로 ${checkDate} 'new' 모드 기록이 ${dsnap.exists() ? '<span class="bad">이미 존재합니다 (그래서 보충 목록에 안 뜸)</span>' : '<span class="ok">존재하지 않습니다</span>'} (docId=${docId})`);
+
+      // findMissedDays 로직 그대로 재현
+      if(!SETTINGS.makeupOpen){
+        out.push(`→ makeupOpen이 꺼져있어 보충 목록 자체가 비활성 상태입니다.`);
+      } else {
+        const back = SETTINGS.makeupMaxBack || 3;
+        const candidates = pastDayRows(SETTINGS, 'jr3', back);
+        out.push(`→ 보충 후보 날짜(최근 ${back}개): ${candidates.map(c=>c.date).join(', ')}`);
+        const missed = [];
+        for(const r of candidates){
+          const ds = await getDoc(doc(db, COL_ATTEMPTS, attemptDocId(key, r.date, 'new')));
+          if(!ds.exists()) missed.push(r.date);
+        }
+        out.push(`→ <b>이 키 기준 실제 "밀린 시험" 목록: ${missed.length ? missed.join(', ') : '(없음)'}</b>`);
+      }
+    }
+  }
+}catch(e){
+  out.push(`<span class="bad">오류: ${e.message}</span>`);
+  console.error(e);
+}
+
+host.innerHTML = '';
+out.forEach(block=>{
+  const c = el(`<div class="card"></div>`);
+  c.innerHTML = block.replace(/\n/g,'<br>');
+  host.appendChild(c);
+});
+</script>
+</body></html>
