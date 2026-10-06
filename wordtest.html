@@ -116,7 +116,8 @@ let SETTINGS = {
   pauses: [],
   makeupOpen: false,
   makeupMaxBack: 3,
-  jr3UnitsPerDay: 6
+  jr3UnitsPerDay: 6,
+  jr3PaceChanges: []
 };
 let student = null;
 
@@ -173,6 +174,21 @@ function nextOpenDate(dstr, track){
   return null;
 }
 
+// 그 날짜의 하루 진도(유닛 수). 일반(main)은 항상 2로 고정.
+// 3학년(jr3)은 기본값(jr3UnitsPerDay)에서 시작해, jr3PaceChanges에 등록된
+// 변경일 중 그 날짜 이전(포함)인 것 중 가장 최근 것을 적용한다.
+function paceOnDate(track, dstr){
+  if(track !== 'jr3') return 2;
+  let p = SETTINGS.jr3UnitsPerDay || 6;
+  let bestFrom = null;
+  (SETTINGS.jr3PaceChanges || []).forEach(c=>{
+    if(c && c.from && c.perDay && c.from <= dstr){
+      if(bestFrom === null || c.from > bestFrom){ bestFrom = c.from; p = c.perDay; }
+    }
+  });
+  return p;
+}
+
 function computeDayInfo(dateObj, track){
   const startSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
   if(!startSetting) return {idx:null, weekend:false, notStarted:true};
@@ -180,11 +196,16 @@ function computeDayInfo(dateObj, track){
   const now = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
   const startMid = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   if(now < startMid) return {idx:null, weekend:false, notStarted:true};
+  const maxUnit = track==='jr3' ? 245 : 82;
   let idx = -1;
+  let unitsBefore = 0; // 오늘 이전까지 배정된 유닛 수 누적
   let cursor = new Date(startMid);
-  while(cursor <= now){
+  while(cursor < now){
     const day = cursor.getDay();
-    if(day !== 0 && day !== 6 && !isPausedDate(ymd(cursor), track)) idx++;
+    if(day !== 0 && day !== 6 && !isPausedDate(ymd(cursor), track)){
+      idx++;
+      unitsBefore += paceOnDate(track, ymd(cursor));
+    }
     cursor.setDate(cursor.getDate()+1);
   }
   const todayDay = now.getDay();
@@ -193,41 +214,36 @@ function computeDayInfo(dateObj, track){
   if(isPausedDate(nowStr, track)){
     return {idx:null, weekend:false, notStarted:false, paused:true, pause:pauseRangeOf(nowStr, track)};
   }
-  return {idx, weekend:false, notStarted:false};
-}
-
-function unitRangeForDayIndex(idx, track){
-  const perDay = track==='jr3' ? (SETTINGS.jr3UnitsPerDay||6) : 2;
-  const maxUnit = track==='jr3' ? 245 : 82;
-  const startUnit = idx*perDay + 1;
-  const endUnit = idx*perDay + perDay;
-  if(startUnit > maxUnit) return null;
-  return {start: startUnit, end: Math.min(endUnit,maxUnit)};
+  idx++;
+  const su = unitsBefore + 1;
+  const range = su <= maxUnit ? {start: su, end: Math.min(unitsBefore + paceOnDate(track, nowStr), maxUnit)} : null;
+  return {idx, weekend:false, notStarted:false, startUnit: unitsBefore, range};
 }
 
 // 지금까지 지나간 회차 목록 (오늘 제외)
 function pastDayRows(track, backFromToday){
   const startSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
   if(!startSetting) return [];
-  const perDay = track==='jr3' ? (SETTINGS.jr3UnitsPerDay||6) : 2;
   const maxUnit = track==='jr3' ? 245 : 82;
   const rows = [];
   const cursor = new Date(startSetting + 'T00:00:00');
   const now = new Date();
   const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  let idx = 0, guard = 0;
+  let idx = 0, unitsSoFar = 0, guard = 0;
   while(guard++ < 3000){
     const cur = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
     if(cur >= todayMid) break;
     const d = cursor.getDay();
     if(d !== 0 && d !== 6 && !isPausedDate(ymd(cursor), track)){
-      const su = idx*perDay + 1;
+      const su = unitsSoFar + 1;
       if(su > maxUnit) break;
+      const pace = paceOnDate(track, ymd(cursor));
       rows.push({
         idx: idx+1,
-        date: `${cursor.getFullYear()}-${pad(cursor.getMonth()+1,2)}-${pad(cursor.getDate(),2)}`,
-        range: {start: su, end: Math.min(su+perDay-1, maxUnit)}
+        date: ymd(cursor),
+        range: {start: su, end: Math.min(unitsSoFar+pace, maxUnit)}
       });
+      unitsSoFar += pace;
       idx++;
     }
     cursor.setDate(cursor.getDate()+1);
@@ -495,7 +511,7 @@ ROUTES.testGate = async (main) => {
     main.appendChild(backHomeBtn());
     return;
   }
-  const range = unitRangeForDayIndex(info.idx, track);
+  const range = info.range;
   if(!range){
     main.innerHTML = '';
     main.appendChild(el(`<div class="card"><h2>전체 과정을 완료했습니다</h2><p class="muted">배정된 시험 범위를 모두 완료했습니다. 수고하셨습니다!</p></div>`));
@@ -1196,9 +1212,9 @@ async function renderOverviewTab(body){
   if(fetched.truncated) body.appendChild(truncationWarning(ATTEMPT_FETCH_LIMIT));
 
   const info = computeDayInfo(new Date(), 'main');
-  const range = info.idx!==null ? unitRangeForDayIndex(info.idx, 'main') : null;
+  const range = info.range || null;
   const infoJr3 = computeDayInfo(new Date(), 'jr3');
-  const rangeJr3 = infoJr3.idx!==null ? unitRangeForDayIndex(infoJr3.idx, 'jr3') : null;
+  const rangeJr3 = infoJr3.range || null;
   body.appendChild(el(`
     <div class="card">
       <div class="statrow"><span class="muted">일반 오늘(${todayStr()})</span><span>${range ? `${info.idx+1}회차 · UNIT ${pad(range.start,3)}~${pad(range.end,3)}` : '시험일 아님'}</span></div>
@@ -1931,11 +1947,76 @@ function renderSettingsTab(body){
       <h3 style="margin-top:0;">3학년 시험 설정</h3>
       <label>3학년 시험 시작일 (1일차, 평일만 카운트)</label>
       <input type="text" id="setJr3Start" placeholder="YYYY-MM-DD" value="${SETTINGS.jr3StartDate||''}">
-      <label>하루 시험 유닛 수</label>
+      <label>하루 시험 유닛 수 (시작일부터 적용되는 기본값)</label>
       <input type="text" id="setJr3Units" value="${SETTINGS.jr3UnitsPerDay||6}" inputmode="numeric">
       <button class="btn btn-primary" id="btnSaveJr3">저장</button>
     </div>
   `));
+
+  // ===== 3학년 진도 속도 변경 =====
+  const paceCard = el(`
+    <div class="card">
+      <h3 style="margin-top:0; margin-bottom:6px;">3학년 진도 속도 변경</h3>
+      <p class="muted" style="margin:0 0 12px; font-size:12px;">
+        특정 날짜부터 하루에 내는 유닛 수를 바꿀 때 씁니다. 예를 들어 10월 8일부터 하루 10유닛으로
+        바꾸면, 10월 7일까지는 기존 속도 그대로 나가고 10월 8일부터 새 속도로 이어서 나갑니다.
+        <b>유닛 번호는 끊기지 않고 이어집니다.</b>
+      </p>
+      <div id="paceList" style="margin-bottom:12px;"></div>
+      <label>적용 시작일</label>
+      <input type="date" id="pcFrom">
+      <label>이 날부터 하루 유닛 수</label>
+      <input type="text" id="pcUnits" inputmode="numeric" placeholder="예: 10">
+      <button class="btn btn-primary" id="btnAddPace" style="margin-top:10px;">속도 변경 추가</button>
+    </div>
+  `);
+  body.appendChild(paceCard);
+
+  function drawPaceChanges(){
+    const box = paceCard.querySelector('#paceList');
+    box.innerHTML = '';
+    const list = (SETTINGS.jr3PaceChanges || []).slice().sort((a,b)=>a.from.localeCompare(b.from));
+    if(list.length === 0){
+      box.appendChild(el(`<p class="muted" style="margin:0; font-size:13px;">등록된 속도 변경이 없습니다. 시작일부터 기본값(하루 ${SETTINGS.jr3UnitsPerDay||6}유닛)으로 계속 나갑니다.</p>`));
+      return;
+    }
+    const today = todayStr();
+    list.forEach(p=>{
+      const applied = p.from <= today;
+      const row = el(`
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #eee;">
+          <div style="flex:1;">
+            <div style="font-size:13px;"><b>${p.from}부터 하루 ${p.perDay}유닛</b> ${applied ? '<span class="badge-ok" style="font-size:10px;">적용 중</span>' : '<span class="badge-warn" style="font-size:10px;">예정</span>'}</div>
+          </div>
+          <button class="rmBtn" style="padding:6px 11px; font-size:12px; font-weight:600; border:1px solid #ddd; background:#f6f6f6; color:#666; border-radius:8px; cursor:pointer;">삭제</button>
+        </div>
+      `);
+      row.querySelector('.rmBtn').onclick = async () => {
+        SETTINGS.jr3PaceChanges = (SETTINGS.jr3PaceChanges||[]).filter(x => !(x.from === p.from && x.perDay === p.perDay));
+        await saveSettings();
+        showToast('속도 변경을 지웠습니다');
+        drawPaceChanges();
+        drawSchedule();
+      };
+      box.appendChild(row);
+    });
+  }
+  drawPaceChanges();
+
+  paceCard.querySelector('#btnAddPace').onclick = async () => {
+    const f = paceCard.querySelector('#pcFrom').value;
+    const u = parseInt(paceCard.querySelector('#pcUnits').value.trim(), 10);
+    if(!f){ showToast('적용 시작일을 정해주세요'); return; }
+    if(!u || u <= 0){ showToast('하루 유닛 수를 정확히 입력해주세요'); return; }
+    SETTINGS.jr3PaceChanges = (SETTINGS.jr3PaceChanges || []).concat([{from:f, perDay:u}]);
+    await saveSettings();
+    showToast(`${f}부터 하루 ${u}유닛으로 설정했습니다`);
+    paceCard.querySelector('#pcFrom').value = '';
+    paceCard.querySelector('#pcUnits').value = '';
+    drawPaceChanges();
+    drawSchedule();
+  };
+
   // ===== 휴강 기간 =====
   const pauseCard = el(`
     <div class="card">
@@ -2106,35 +2187,37 @@ function renderSettingsTab(body){
   function buildSchedule(track){
     const startSetting = track === 'jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
     if(!startSetting) return null;
-    const perDay = track === 'jr3' ? (SETTINGS.jr3UnitsPerDay || 6) : 2;
     const maxUnit = track === 'jr3' ? 245 : 82;
     const rows = [];
     const cursor = new Date(startSetting + 'T00:00:00');
     let idx = 0;
+    let unitsSoFar = 0;
     let guard = 0;
     while(guard++ < 3000){
       const d = cursor.getDay();
       if(d !== 0 && d !== 6 && !isPausedDate(ymd(cursor), track)){
-        const startUnit = idx * perDay + 1;
+        const startUnit = unitsSoFar + 1;
         if(startUnit > maxUnit) break;
+        const pace = paceOnDate(track, ymd(cursor));
         rows.push({
           idx: idx + 1,
-          date: `${cursor.getFullYear()}-${pad(cursor.getMonth()+1,2)}-${pad(cursor.getDate(),2)}`,
+          date: ymd(cursor),
           dow: ['일','월','화','수','목','금','토'][d],
           start: startUnit,
-          end: Math.min(startUnit + perDay - 1, maxUnit),
+          end: Math.min(startUnit + pace - 1, maxUnit),
           type: getDayType(new Date(cursor), track)
         });
+        unitsSoFar += pace;
         idx++;
       }
       cursor.setDate(cursor.getDate() + 1);
     }
-    return {rows, perDay, maxUnit, startSetting};
+    return {rows, maxUnit, startSetting};
   }
 
   async function drawSchedule(){
     schedTrackBar.innerHTML = '';
-    [{value:'main',label:'일반 (하루 2유닛)'},{value:'jr3',label:`3학년 (하루 ${SETTINGS.jr3UnitsPerDay||6}유닛)`}].forEach(o=>{
+    [{value:'main',label:'일반 (하루 2유닛)'},{value:'jr3',label:`3학년 (오늘 기준 하루 ${paceOnDate('jr3', todayStr())}유닛)`}].forEach(o=>{
       const b = el(`<button style="flex:1; padding:8px 4px; font-size:12px; font-weight:600; border-radius:8px; cursor:pointer;">${o.label}</button>`);
       const on = SCHED.track === o.value;
       b.style.background = on ? '#0d281c' : '#f4f4f4';
