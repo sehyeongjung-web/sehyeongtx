@@ -123,7 +123,51 @@ let student = null;
 
 function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
 function pad(n,l){ return String(n).padStart(l,'0'); }
-function todayStr(d){ d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1,2)+'-'+pad(d.getDate(),2); }
+// ============== 서울 시각 ==============
+// 모든 날짜·시간 판단은 학생 기기의 시계/시간대가 아니라
+// "서버가 알려준 현재 시각 + 9시간(서울)"을 기준으로 한다.
+// 서버와 연결이 안 되면 기기 시계를 쓰되, 시간대만큼은 서울로 고정한다.
+const SEOUL_OFFSET_MS = 9*3600*1000;
+let CLOCK_SKEW_MS = 0;      // 서버 시각 - 기기 시각 (ms). 양수면 기기가 느린 것
+let CLOCK_SYNCED = false;   // 서버 시각을 실제로 받아왔는지
+let GATE_DATE = null;       // 시험 화면을 연 날짜(서울). 시작 버튼을 누를 때 날짜가 바뀌었는지 비교
+// 반환하는 Date의 '로컬' 필드(getFullYear/getDay/getHours...)가 곧 서울 시각이 되도록 만든다.
+function seoulNow(){
+  const u = new Date(Date.now() + CLOCK_SKEW_MS + SEOUL_OFFSET_MS);
+  return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate(), u.getUTCHours(), u.getUTCMinutes(), u.getUTCSeconds());
+}
+async function syncClock(){
+  try{
+    const t0 = Date.now();
+    const url = location.href.split('#')[0].split('?')[0] + '?_t=' + t0;
+    const res = await fetch(url, {method:'HEAD', cache:'no-store'});
+    const t1 = Date.now();
+    const h = res.headers.get('date');
+    if(!h) return;
+    const srv = new Date(h).getTime();
+    if(isNaN(srv)) return;
+    const age = parseInt(res.headers.get('age') || '0', 10) || 0;
+    const srvAtT1 = srv + age*1000 + 500 + (t1 - t0)/2;  // Date 헤더는 초 단위 내림 → +0.5초, 편도 지연 보정
+    const skew = srvAtT1 - t1;
+    if(Math.abs(skew) < 400*86400000){ CLOCK_SKEW_MS = skew; CLOCK_SYNCED = true; }
+  }catch(e){ console.warn('clock sync failed', e); }
+}
+function seoulStampOf(ms){
+  const u = new Date(ms + CLOCK_SKEW_MS + SEOUL_OFFSET_MS);
+  return u.getUTCFullYear()+'-'+pad(u.getUTCMonth()+1,2)+'-'+pad(u.getUTCDate(),2)+' '+pad(u.getUTCHours(),2)+':'+pad(u.getUTCMinutes(),2);
+}
+function deviceTz(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(e){ return ''; } }
+function deviceDateStr(){ const d = new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1,2)+'-'+pad(d.getDate(),2); }
+function fmtSkew(ms){
+  const m = Math.round(Math.abs(ms)/60000);
+  const d = Math.floor(m/1440), h = Math.floor((m%1440)/60), mi = m%60;
+  const parts = [];
+  if(d) parts.push(d+'일');
+  if(h) parts.push(h+'시간');
+  if(mi && !d) parts.push(mi+'분');
+  return parts.join(' ') || '1분 미만';
+}
+function todayStr(d){ d = d || seoulNow(); return d.getFullYear()+'-'+pad(d.getMonth()+1,2)+'-'+pad(d.getDate(),2); }
 function showToast(msg){
   const t = el(`<div class="toast">${msg}</div>`);
   document.body.appendChild(t);
@@ -227,7 +271,7 @@ function pastDayRows(track, backFromToday){
   const maxUnit = track==='jr3' ? 245 : 82;
   const rows = [];
   const cursor = new Date(startSetting + 'T00:00:00');
-  const now = new Date();
+  const now = seoulNow();
   const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let idx = 0, unitsSoFar = 0, guard = 0;
   while(guard++ < 3000){
@@ -291,7 +335,7 @@ async function loadMyDates(key){
 }
 
 function isWithinTestWindow(){
-  const now = new Date();
+  const now = seoulNow();
   const d = now.getDay(); // 0=Sun, 6=Sat
   if(d===0 || d===6) return true; // 주말: 시간 제한 없음
   return now.getHours() >= SETTINGS.openHour;
@@ -447,7 +491,9 @@ ROUTES.studentLogin = (main) => {
 // ============== TEST GATE (checks window / day) ==============
 ROUTES.testGate = async (main) => {
   main.appendChild(el(`<div class="empty">확인 중...</div>`));
-  const now = new Date();
+  await syncClock();
+  const now = seoulNow();
+  GATE_DATE = todayStr(now);
   const track = student.track || 'main';
   const dayType = getDayType(now, track); // 'new' | 'new+review' | 'review'
 
@@ -599,7 +645,7 @@ function buildAllMeaningPool(){
 const ALL_WORDS_POOL = buildAllMeaningPool();
 
 async function getRecentMeanings(key, days){
-  const cutoff = new Date();
+  const cutoff = seoulNow();
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = todayStr(cutoff);
   const recent = new Set();
@@ -645,6 +691,13 @@ function buildQuestionsFromWords(words, recentMeanings){
 const SHUFFLE_NEW_TEST_FROM = '2026-10-07';
 
 async function startTest(range, dayType, makeup){
+  // 화면을 열어둔 채 날짜가 바뀌었거나 시험 시간이 아니면 새로 불러온다. (보충 시험은 시간 제한 없음)
+  await syncClock();
+  if(!makeup && (todayStr() !== GATE_DATE || !isWithinTestWindow())){
+    showToast('날짜·시간이 바뀌어 화면을 새로 불러옵니다');
+    render('testGate');
+    return;
+  }
   main.innerHTML = '';
   main.appendChild(el(`<div class="empty">문제 준비 중...</div>`));
 
@@ -660,6 +713,7 @@ async function startTest(range, dayType, makeup){
 
   testState = {
     mode: 'new', dayType, range, questions, idx: 0, correctCount: 0, makeup: makeup || null,
+    dateAtStart: todayStr(),
     unitStats: {}, wordResults: [], choicesShownFlat: [],
     startedAt: Date.now(), timerHandle: null
   };
@@ -669,6 +723,15 @@ async function startTest(range, dayType, makeup){
 }
 
 async function startReviewTest(pool, opts){
+  // 수요일 신규 시험에 이어지는 복습(chained)은 같은 날 기록으로 그대로 이어간다.
+  if(!(opts && opts.chained)){
+    await syncClock();
+    if(todayStr() !== GATE_DATE){
+      showToast('날짜가 바뀌어 화면을 새로 불러옵니다');
+      render('testGate');
+      return;
+    }
+  }
   main.innerHTML = '';
   main.appendChild(el(`<div class="empty">복습 문제 준비 중...</div>`));
   const words = Object.keys(pool).map(en => ({en, ko: pool[en].ko, unit: pool[en].unit}));
@@ -677,6 +740,7 @@ async function startReviewTest(pool, opts){
 
   testState = {
     mode: 'review', thenGoHome: !!(opts && opts.thenGoHome),
+    dateAtStart: (opts && opts.dateAtStart) || todayStr(),
     questions, idx: 0, correctCount: 0,
     unitStats: {}, wordResults: [], choicesShownFlat: [],
     startedAt: Date.now(), timerHandle: null
@@ -746,6 +810,16 @@ function answerQuestion(chosen){
   }, delay);
 }
 
+// 응시 기록 옆에 보여주는 저장 시각(서울) / 기기 시계가 크게 틀렸던 경우 표시
+function attemptMetaHtml(a){
+  let out = '';
+  if(a.seoulSavedAt) out += ` · ${a.seoulSavedAt.slice(5)} 저장`;
+  if(a.clockSynced && Math.abs(a.clockSkewSec || 0) > 300){
+    out += ` <span class="badge-warn" style="font-size:10px;">기기 시계 ${fmtSkew((a.clockSkewSec||0)*1000)} ${a.clockSkewSec<0 ? '빠름' : '느림'}</span>`;
+  }
+  return out;
+}
+
 function attendanceTimelineEl(s){
   const track = s.track || 'main';
   const startDateSetting = track==='jr3' ? SETTINGS.jr3StartDate : SETTINGS.startDate;
@@ -760,7 +834,7 @@ function attendanceTimelineEl(s){
     if(!byDate[a.date] || a.mode==='new') byDate[a.date] = a;
   });
   const start = new Date(startDateSetting + 'T00:00:00');
-  const today = new Date();
+  const today = seoulNow();
   today.setHours(0,0,0,0);
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   let any = false;
@@ -863,16 +937,63 @@ function unitDetailCard(unitStats){
   return card;
 }
 
+function withTimeout(p, ms){
+  return new Promise((resolve, reject)=>{
+    const t = setTimeout(()=>reject(new Error('timeout')), ms);
+    p.then(v=>{ clearTimeout(t); resolve(v); }, e=>{ clearTimeout(t); reject(e); });
+  });
+}
+// 'ok' 저장됨 | 'exists' 같은 날짜의 다른 기록이 이미 있어 덮어쓰지 않음 | 'fail' 저장 실패(연결 문제 등)
+async function saveAttemptSafely(record){
+  try{
+    const ref = doc(db, COL_ATTEMPTS, attemptDocId(record.studentKey, record.date, record.mode));
+    const cur = await withTimeout(getDoc(ref), 12000);
+    if(cur.exists()){
+      // 재시도로 이미 올라간 똑같은 기록이면 성공으로 본다
+      return cur.data().createdAt === record.createdAt ? 'ok' : 'exists';
+    }
+    await withTimeout(setDoc(ref, record), 15000);
+    return 'ok';
+  }catch(e){ console.error('save failed', e); return 'fail'; }
+}
+
+
+// ----- 저장 실패 시 학생 조작 없이 자동 재전송 -----
+const PENDING_KEY = 'wordtest_pending_attempts';
+function readPending(){ try{ return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }catch(e){ return []; } }
+function writePending(list){ try{ localStorage.setItem(PENDING_KEY, JSON.stringify(list)); }catch(e){} }
+function samePending(a, b){ return a.studentKey===b.studentKey && a.date===b.date && a.mode===b.mode && a.createdAt===b.createdAt; }
+function queuePendingAttempt(record){ const l = readPending(); if(!l.some(r=>samePending(r, record))) l.push(record); writePending(l); }
+function dropPending(record){ writePending(readPending().filter(r=>!samePending(r, record))); }
+// 연결이 돌아올 때까지 점점 간격을 늘려 다시 보낸다 (화면을 닫아도 다음에 접속할 때 flushPendingAttempts 가 이어서 보낸다)
+function retryPendingInBackground(record, noteEl){
+  const delays = [4000, 8000, 15000, 30000, 60000, 120000];
+  (async () => {
+    for(const d of delays){
+      await new Promise(r => setTimeout(r, d));
+      const r = await saveAttemptSafely(record);
+      if(r === 'ok' || r === 'exists'){ dropPending(record); if(noteEl) noteEl.remove(); return; }
+    }
+  })();
+}
+async function flushPendingAttempts(){
+  for(const r of readPending()){
+    const st = await saveAttemptSafely(r);
+    if(st === 'ok' || st === 'exists') dropPending(r);
+  }
+}
+
 async function finishTest(){
   main.innerHTML = '';
   main.appendChild(el(`<div class="empty">저장 중...</div>`));
   const total = testState.questions.length;
   const score = testState.correctCount;
   const mode = testState.mode;
-  const today = todayStr();
+  const today = testState.dateAtStart || todayStr();   // 끝난 시각이 아니라 시작한 날짜(서울)로 기록
 
   const mk = testState.makeup;
   const recordDate = mk ? mk.makeupDate : today;
+  const nowMs = Date.now();
   const record = {
     studentKey: student.key, cls: student.cls, num: student.num, name: student.name,
     track: student.track || 'main',
@@ -884,22 +1005,37 @@ async function finishTest(){
     score, total, unitStats: testState.unitStats,
     wordResults: testState.wordResults,
     choicesShown: Array.from(new Set(testState.choicesShownFlat)),
-    createdAt: Date.now()
+    startedAt: testState.startedAt || null,
+    createdAt: nowMs,
+    // 나중에 날짜가 어긋났을 때 원인을 바로 알 수 있도록 남기는 진단 정보
+    seoulSavedAt: seoulStampOf(nowMs),
+    clientDate: deviceDateStr(),
+    clientTz: deviceTz(),
+    clockSkewSec: Math.round(CLOCK_SKEW_MS/1000),
+    clockSynced: CLOCK_SYNCED
   };
-  try{
-    const id = attemptDocId(student.key, recordDate, mode);
-    await setDoc(doc(db, COL_ATTEMPTS, id), record);
-  }catch(e){ console.error('save failed', e); showToast('저장 중 오류가 발생했습니다'); }
+  const saveStatus = await saveAttemptSafely(record);
 
   let updatedPool = {};
   try{
-    updatedPool = await updatePoolAfterResults(student.key, testState.wordResults);
+    if(saveStatus === 'exists') updatedPool = await loadReviewPool(student.key);   // 중복 저장이면 복습 목록도 건드리지 않는다
+    else updatedPool = await updatePoolAfterResults(student.key, testState.wordResults);
   }catch(e){ console.error('pool update failed', e); }
 
   main.innerHTML = '';
   const title = mode==='new'
     ? `UNIT ${pad(testState.range.start,3)}~${pad(testState.range.end,3)} 결과`
     : '복습 시험 결과';
+  let pendingNote = null;
+  if(saveStatus === 'fail'){
+    // 학생에게 아무것도 요구하지 않는다: 기기에 임시 보관하고 자동으로 계속 다시 보낸다.
+    queuePendingAttempt(record);
+    pendingNote = el(`<p class="muted" style="text-align:center; font-size:12px; margin:4px 0 10px;">기록은 연결되는 대로 자동으로 저장됩니다.</p>`);
+    retryPendingInBackground(record, pendingNote);
+  } else if(saveStatus === 'exists'){
+    console.warn('같은 날짜의 다른 기록이 이미 있어 덮어쓰지 않았습니다', record.studentKey, record.date);
+  }
+  if(pendingNote) main.appendChild(pendingNote);
   main.appendChild(scoreCard(title, score, total));
   main.appendChild(unitDetailCard(testState.unitStats));
   main.appendChild(wrongWordsCard(testState.wordResults));
@@ -909,7 +1045,8 @@ async function finishTest(){
     const poolWords = Object.keys(updatedPool);
     if(poolWords.length > 0){
       const cont = el(`<div class="homebtn gold">이어서 복습 시험 보기 (${poolWords.length}개)</div>`);
-      cont.onclick = () => startReviewTest(updatedPool, {thenGoHome:true});
+      const dateOfNew = testState.dateAtStart;
+      cont.onclick = () => startReviewTest(updatedPool, {thenGoHome:true, chained:true, dateAtStart:dateOfNew});
       main.appendChild(cont);
     }
   }
@@ -1091,9 +1228,9 @@ async function renderWrongTab(body){
 
     let cutoff = null;
     if(state.days > 0){
-      const d = new Date();
+      const d = seoulNow();
       d.setDate(d.getDate() - state.days);
-      cutoff = d.toISOString().slice(0,10);
+      cutoff = todayStr(d);
     }
 
     const filtered = allAttempts.filter(a => {
@@ -1252,9 +1389,9 @@ async function renderOverviewTab(body){
   body.innerHTML = '';
   if(fetched.truncated) body.appendChild(truncationWarning(ATTEMPT_FETCH_LIMIT));
 
-  const info = computeDayInfo(new Date(), 'main');
+  const info = computeDayInfo(seoulNow(), 'main');
   const range = info.range || null;
-  const infoJr3 = computeDayInfo(new Date(), 'jr3');
+  const infoJr3 = computeDayInfo(seoulNow(), 'jr3');
   const rangeJr3 = infoJr3.range || null;
   body.appendChild(el(`
     <div class="card">
@@ -1742,7 +1879,7 @@ function makeStudentCard(s, poolCount){
       s.attempts.slice().reverse().forEach(a=>{
         const pct = Math.round(100*a.score/a.total);
         const modeLabel = a.mode==='review' ? '복습 시험' : `UNIT ${pad(a.unitStart,3)}~${pad(a.unitEnd,3)}`;
-        const attemptEl = el(`<div style="margin-bottom:10px;"><div class="statrow"><span class="muted">${a.date} · ${modeLabel}</span><span class="${pct<70?'badge-warn':'badge-ok'}">${a.score}/${a.total} (${pct}%)</span></div></div>`);
+        const attemptEl = el(`<div style="margin-bottom:10px;"><div class="statrow"><span class="muted">${a.date} · ${modeLabel}${attemptMetaHtml(a)}</span><span class="${pct<70?'badge-warn':'badge-ok'}">${a.score}/${a.total} (${pct}%)</span></div></div>`);
         const unitDetail = el(`<div></div>`);
         Object.keys(a.unitStats||{}).sort((x,y)=>x-y).forEach(u=>{
           const st = a.unitStats[u];
@@ -2439,8 +2576,9 @@ function renderSettingsTab(body){
 
 // ============== INIT ==============
 async function init(){
-  await loadSettings();
+  await Promise.all([loadSettings(), syncClock()]);
   render('home');
+  flushPendingAttempts();
 }
 init();
 </script>
