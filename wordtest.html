@@ -118,6 +118,7 @@ let SETTINGS = {
   makeupMaxBack: 3,
   makeupOpenMain: false,     // 2학년(일반) 보충 시험 열림 여부
   makeupMaxBackMain: 0,      // 2학년: 최근 몇 회차까지 (0 = 전체)
+  recapOn: true,             // 시험 시작 전 '지난 시험 틀린 단어' 먼저 보여주기
   jr3UnitsPerDay: 6,
   jr3PaceChanges: []
 };
@@ -547,6 +548,7 @@ ROUTES.testGate = async (main) => {
       main.appendChild(backHomeBtn());
       return;
     }
+    if(await showRecapFirst(main)) return;
     main.appendChild(el(`
       <div class="card">
         <h2>복습 시험 (주말)</h2>
@@ -601,6 +603,7 @@ ROUTES.testGate = async (main) => {
     main.appendChild(backHomeBtn());
     return;
   }
+  if(await showRecapFirst(main)) return;
   const myDates = await loadMyDates(student.key);
   const streak = calcStreak(myDates, track);
   main.appendChild(el(`
@@ -618,6 +621,64 @@ ROUTES.testGate = async (main) => {
   await appendMakeupSection(main, track);
   main.appendChild(backHomeBtn());
 };
+
+// ===== 시험 시작 전: 가장 최근 응시에서 틀린 단어를 먼저 보여준다 =====
+const RECAP_SEEN = new Set();   // 오늘 이미 보여준 학생 (같은 화면을 열어 둔 동안 한 번만)
+
+// 이 학생의 가장 최근 응시 기록(정시·보충·복습 모두 포함). 기록이 없거나 조회에 실패하면 null.
+async function loadLastAttempt(key){
+  try{
+    const q = query(collection(db, COL_ATTEMPTS), where('studentKey','==', key));
+    const snap = await getDocs(q);
+    let best = null;
+    snap.forEach(d => {
+      const v = d.data();
+      if(!best){ best = v; return; }
+      const t = v.createdAt || 0, bt = best.createdAt || 0;
+      if(t > bt || (t === bt && String(v.date||'') > String(best.date||''))) best = v;
+    });
+    return best;
+  }catch(e){ console.error('last attempt load failed', e); return null; }
+}
+
+// 보여줬으면 true (화면은 여기서 멈추고, 확인 버튼이 시험 입장 화면을 다시 그린다).
+// 보여줄 것이 없거나 조회에 실패하면 false — 시험 진행을 절대 막지 않는다.
+async function showRecapFirst(main){
+  if(SETTINGS.recapOn === false) return false;
+  const tag = student.key + '_' + todayStr();
+  if(RECAP_SEEN.has(tag)) return false;
+  const last = await loadLastAttempt(student.key);
+  if(!last) return false;
+  const wrong = (last.wordResults || []).filter(w => !w.correct);
+  if(wrong.length === 0){ RECAP_SEEN.add(tag); return false; }
+  wrong.sort((a,b) => (a.unit||0) - (b.unit||0));
+
+  const d = String(last.date || '');
+  const md = d.length >= 10 ? (parseInt(d.slice(5,7),10) + '/' + parseInt(d.slice(8,10),10)) : '';
+  const what = last.mode === 'review' ? '복습 시험'
+             : (last.unitStart ? `UNIT ${pad(last.unitStart,3)}~${pad(last.unitEnd,3)}` : '시험');
+
+  main.innerHTML = '';
+  const card = el(`
+    <div class="card" style="border:1px solid #e6cfa0; background:#fffaf0;">
+      <h2 style="margin-top:0; margin-bottom:4px;">지난 시험에서 틀린 단어 ${wrong.length}개</h2>
+      <p class="muted" style="margin:0 0 10px; font-size:13px;">${md ? md + ' · ' : ''}${what} — 시험을 보기 전에 한 번 훑어보세요.</p>
+    </div>
+  `);
+  wrong.forEach(w => {
+    card.appendChild(el(`
+      <div style="border-top:1px solid #f0e6d0; padding:8px 0;">
+        <div class="statrow"><span style="font-weight:700;">${w.en}</span><span class="muted">UNIT ${pad(w.unit,3)}</span></div>
+        <div style="color:#555; font-size:14px;">${w.ko}</div>
+      </div>
+    `));
+  });
+  main.appendChild(card);
+  const go = el(`<div class="homebtn gold">확인했어요 — 시험 화면으로</div>`);
+  go.onclick = () => { RECAP_SEEN.add(tag); render('testGate'); };
+  main.appendChild(go);
+  return true;
+}
 
 // 밀린 시험 목록을 화면 아래에 붙인다.
 async function appendMakeupSection(main, track){
@@ -2439,6 +2500,35 @@ function renderSettingsTab(body){
     await saveSettings();
     showToast('저장되었습니다');
   };
+
+  // ===== 시험 전 지난 시험 틀린 단어 보여주기 =====
+  const recapCard = el(`
+    <div class="card">
+      <h3 style="margin-top:0; margin-bottom:6px;">시험 전 지난 시험 틀린 단어 보여주기</h3>
+      <p class="muted" style="margin:0 0 12px; font-size:12px;">
+        학생이 시험을 보러 들어오면, 가장 최근에 응시한 시험에서 틀린 단어와 뜻을 먼저 보여준 뒤
+        '확인했어요'를 누르면 시험 화면으로 넘어갑니다. 틀린 단어가 없거나 응시 기록이 없는 학생에게는 나오지 않고,
+        오늘 시험을 이미 본 학생에게도 나오지 않습니다.
+      </p>
+      <div id="recapToggleBox"></div>
+    </div>
+  `);
+  body.appendChild(recapCard);
+
+  function drawRecapToggle(){
+    const box = recapCard.querySelector('#recapToggleBox');
+    box.innerHTML = '';
+    const on = SETTINGS.recapOn !== false;
+    const btn = el(`<button class="btn" style="background:${on ? '#2B7A2E' : '#eee'}; color:${on ? '#fff' : '#444'};">${on ? '✅ 보여주는 중 — 누르면 끄기' : '꺼짐 — 누르면 켜기'}</button>`);
+    btn.onclick = async () => {
+      SETTINGS.recapOn = !on;
+      await saveSettings();
+      showToast(SETTINGS.recapOn ? '켰습니다' : '껐습니다');
+      drawRecapToggle();
+    };
+    box.appendChild(btn);
+  }
+  drawRecapToggle();
 
   // ===== 시험 일정표 =====
   const schedCard = el(`<div class="card"></div>`);
