@@ -2751,7 +2751,7 @@ function renderSettingsTab(body){
   schedCard.appendChild(schedBox);
   body.appendChild(schedCard);
 
-  const SCHED = { track: 'main', showAll: false };
+  const SCHED = { track: 'main', showAll: true };
   let SCHED_ATT = null;
 
   async function ensureAttempts(){
@@ -2820,7 +2820,7 @@ function renderSettingsTab(body){
       b.style.background = on ? '#0d281c' : '#f4f4f4';
       b.style.color = on ? '#fff' : '#666';
       b.style.border = '1px solid ' + (on ? '#0d281c' : '#ddd');
-      b.onclick = () => { SCHED.track = o.value; SCHED.showAll = false; drawSchedule(); };
+      b.onclick = () => { SCHED.track = o.value; SCHED.showAll = true; drawSchedule(); };
       schedTrackBar.appendChild(b);
     });
 
@@ -2970,7 +2970,7 @@ function renderSettingsTab(body){
     await saveSettings();
     showToast('저장되었습니다');
     SCHED.track = 'jr3';
-    SCHED.showAll = false;
+    SCHED.showAll = true;
     drawSchedule();
   };
 }
