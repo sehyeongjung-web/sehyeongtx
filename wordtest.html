@@ -110,6 +110,7 @@ const UNITS = [{"n": 1, "root": "struct", "root_meaning": "struct=쌓다/세우�
 let SETTINGS = {
   startDate: '2026-09-03',
   openHour: 16,
+  closeHour: 1,              // 다음 날 새벽 N시까지 응시 가능 (0 = 자정에 마감)
   secondsPerQuestion: 10,
   pin: "1234",
   jr3StartDate: '',
@@ -138,6 +139,31 @@ let GATE_DATE = null;       // 시험 화면을 연 날짜(서울). 시작 버�
 function seoulNow(){
   const u = new Date(Date.now() + CLOCK_SKEW_MS + SEOUL_OFFSET_MS);
   return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate(), u.getUTCHours(), u.getUTCMinutes(), u.getUTCSeconds());
+}
+// 마감 시각(새벽 N시). 0~6으로 제한. 0이면 예전처럼 자정에 마감.
+function closeHourVal(){
+  const c = parseInt(SETTINGS.closeHour, 10);
+  return isNaN(c) ? 0 : Math.max(0, Math.min(6, c));
+}
+// 시험일 기준의 '지금'. 자정~마감 시각 사이에는 전날 날짜로 계산한다.
+// (예: 목요일 밤 시험을 금요일 새벽 0시 30분에 봐도 '목요일 회차'로 처리)
+function testDayNow(){
+  const n = seoulNow();
+  if(n.getHours() < closeHourVal()) n.setDate(n.getDate() - 1);
+  return n;
+}
+function closeLabel(){
+  const c = closeHourVal();
+  return c > 0 ? ('다음 날 새벽 ' + c + '시') : '밤 12시';
+}
+// 0~23시를 '오후 5시'처럼 읽기 쉽게
+function hourLabel(h){
+  h = parseInt(h, 10);
+  if(isNaN(h)) return '';
+  if(h === 0) return '밤 12시';
+  if(h < 12) return '오전 ' + h + '시';
+  if(h === 12) return '낮 12시';
+  return '오후 ' + (h - 12) + '시';
 }
 async function syncClock(){
   try{
@@ -170,7 +196,7 @@ function fmtSkew(ms){
   if(mi && !d) parts.push(mi+'분');
   return parts.join(' ') || '1분 미만';
 }
-function todayStr(d){ d = d || seoulNow(); return d.getFullYear()+'-'+pad(d.getMonth()+1,2)+'-'+pad(d.getDate(),2); }
+function todayStr(d){ d = d || testDayNow(); return d.getFullYear()+'-'+pad(d.getMonth()+1,2)+'-'+pad(d.getDate(),2); }
 function showToast(msg){
   const t = el(`<div class="toast">${msg}</div>`);
   document.body.appendChild(t);
@@ -274,7 +300,7 @@ function pastDayRows(track, backFromToday){
   const maxUnit = track==='jr3' ? 245 : 82;
   const rows = [];
   const cursor = new Date(startSetting + 'T00:00:00');
-  const now = seoulNow();
+  const now = testDayNow();
   const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let idx = 0, unitsSoFar = 0, guard = 0;
   while(guard++ < 3000){
@@ -360,10 +386,11 @@ async function loadMyDates(key){
 }
 
 function isWithinTestWindow(){
-  const now = seoulNow();
-  const d = now.getDay(); // 0=Sun, 6=Sat
+  const real = seoulNow();
+  const d = testDayNow().getDay(); // 시험일 기준 요일. 0=Sun, 6=Sat
   if(d===0 || d===6) return true; // 주말: 시간 제한 없음
-  return now.getHours() >= SETTINGS.openHour;
+  if(real.getHours() < closeHourVal()) return true; // 자정~마감 시각: 전날 시험일의 연장
+  return real.getHours() >= SETTINGS.openHour;
 }
 
 function studentKey(cls, num, track){ const base = (cls+'_'+num).replace(/\s+/g,''); return track==='jr3' ? ('jr3_'+base) : base; }
@@ -517,14 +544,14 @@ ROUTES.studentLogin = (main) => {
 ROUTES.testGate = async (main) => {
   main.appendChild(el(`<div class="empty">확인 중...</div>`));
   await syncClock();
-  const now = seoulNow();
+  const now = testDayNow();
   GATE_DATE = todayStr(now);
   const track = student.track || 'main';
   const dayType = getDayType(now, track); // 'new' | 'new+review' | 'review'
 
   if(!isWithinTestWindow()){
     main.innerHTML = '';
-    main.appendChild(el(`<div class="card"><h2>아직 시험 시간이 아닙니다</h2><p class="muted">오늘 시험은 오후 ${SETTINGS.openHour}시부터 밤 12시까지 볼 수 있어요.</p></div>`));
+    main.appendChild(el(`<div class="card"><h2>아직 시험 시간이 아닙니다</h2><p class="muted">오늘 시험은 ${hourLabel(SETTINGS.openHour)}부터 ${closeLabel()}까지 볼 수 있어요.</p></div>`));
     await appendMakeupSection(main, track);
     main.appendChild(backHomeBtn());
     return;
@@ -761,7 +788,7 @@ function buildAllMeaningPool(){
 const ALL_WORDS_POOL = buildAllMeaningPool();
 
 async function getRecentMeanings(key, days){
-  const cutoff = seoulNow();
+  const cutoff = testDayNow();
   cutoff.setDate(cutoff.getDate() - days);
   const cutoffStr = todayStr(cutoff);
   const recent = new Set();
@@ -950,7 +977,7 @@ function attendanceTimelineEl(s){
     if(!byDate[a.date] || a.mode==='new') byDate[a.date] = a;
   });
   const start = new Date(startDateSetting + 'T00:00:00');
-  const today = seoulNow();
+  const today = testDayNow();
   today.setHours(0,0,0,0);
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   let any = false;
@@ -1344,7 +1371,7 @@ async function renderWrongTab(body){
 
     let cutoff = null;
     if(state.days > 0){
-      const d = seoulNow();
+      const d = testDayNow();
       d.setDate(d.getDate() - state.days);
       cutoff = todayStr(d);
     }
@@ -1505,9 +1532,9 @@ async function renderOverviewTab(body){
   body.innerHTML = '';
   if(fetched.truncated) body.appendChild(truncationWarning(ATTEMPT_FETCH_LIMIT));
 
-  const info = computeDayInfo(seoulNow(), 'main');
+  const info = computeDayInfo(testDayNow(), 'main');
   const range = info.range || null;
-  const infoJr3 = computeDayInfo(seoulNow(), 'jr3');
+  const infoJr3 = computeDayInfo(testDayNow(), 'jr3');
   const rangeJr3 = infoJr3.range || null;
   body.appendChild(el(`
     <div class="card">
@@ -2250,8 +2277,11 @@ function renderSettingsTab(body){
     <div class="card">
       <label>시험 시작일 (1일차, 평일만 카운트)</label>
       <input type="text" id="setStart" placeholder="YYYY-MM-DD" value="${SETTINGS.startDate||''}">
-      <label>매일 시험 오픈 시각 (0~23시, 자정까지 응시 가능)</label>
+      <label>매일 시험 오픈 시각 (0~23시)</label>
       <input type="text" id="setOpen" value="${SETTINGS.openHour}" inputmode="numeric">
+      <label>시험 마감 시각 (다음 날 새벽 0~6시, 0 = 자정에 마감)</label>
+      <input type="text" id="setClose" value="${closeHourVal()}" inputmode="numeric">
+      <p class="muted" style="margin:2px 0 10px; font-size:12px;">자정이 지나도 마감 시각 전까지 보는 시험은 '그날 회차'로 기록됩니다. (예: 목요일 시험을 금요일 새벽 0시 30분에 봐도 목요일 기록)</p>
       <label>문제당 제한시간(초)</label>
       <input type="text" id="setSec" value="${SETTINGS.secondsPerQuestion}" inputmode="numeric">
       <button class="btn btn-primary" id="btnSave">저장</button>
@@ -2427,7 +2457,7 @@ function renderSettingsTab(body){
         3학년이 응시하지 못한 회차만 대상입니다(2학년은 바로 아래 카드에서 따로 설정합니다).
         켜면 학생 화면에 빠뜨린 회차가 나타나고, 그것만 응시할 수 있습니다.
         지나간 회차 전체가 아니라 최근 몇 회차까지만 보여줍니다. 시험 시간과 문항 수는 정규 시험과 동일합니다.
-        <b>정규 시험 시간대(오후 ${SETTINGS.openHour}시 이전)와 무관하게 언제든 볼 수 있습니다</b> — 단, 휴강 기간에는 보이지 않습니다.
+        <b>정규 시험 시간대(${hourLabel(SETTINGS.openHour)} 이전)와 무관하게 언제든 볼 수 있습니다</b> — 단, 휴강 기간에는 보이지 않습니다.
       </p>
       <div id="mkToggleBox" style="margin-bottom:12px;"></div>
       <label>최근 몇 회차까지 보충을 허용할까요</label>
@@ -2744,6 +2774,9 @@ function renderSettingsTab(body){
   body.querySelector('#btnSave').onclick = async () => {
     SETTINGS.startDate = body.querySelector('#setStart').value.trim();
     SETTINGS.openHour = parseInt(body.querySelector('#setOpen').value.trim(),10) || 16;
+    const cv = parseInt(body.querySelector('#setClose').value.trim(),10);
+    SETTINGS.closeHour = isNaN(cv) ? 1 : Math.max(0, Math.min(6, cv));
+    body.querySelector('#setClose').value = SETTINGS.closeHour;
     SETTINGS.secondsPerQuestion = parseInt(body.querySelector('#setSec').value.trim(),10) || 10;
     await saveSettings();
     showToast('저장되었습니다');
